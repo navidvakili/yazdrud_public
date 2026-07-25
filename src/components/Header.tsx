@@ -1,0 +1,303 @@
+import React, { useState, useEffect } from 'react';
+
+interface HeaderProps {
+  fontSizeScale: number;
+  setFontSizeScale: (scale: number) => void;
+  isHighContrast: boolean;
+  setIsHighContrast: (contrast: boolean) => void;
+  onNavigate: (section: string) => void;
+}
+
+export default function Header({
+  fontSizeScale,
+  setFontSizeScale,
+  isHighContrast,
+  setIsHighContrast,
+  onNavigate,
+}: HeaderProps) {
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [currentLang, setCurrentLang] = useState<'fa' | 'en'>('fa');
+  const [isScrolled, setIsScrolled] = useState(false);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      if (window.scrollY > 30) {
+        setIsScrolled(true);
+      } else {
+        setIsScrolled(false);
+      }
+    };
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  const menuItems = [
+    { label: 'صفحه اصلی', id: 'home' },
+    { label: 'خدمات الکترونیک', id: 'services' },
+    { label: 'تخصیص اراضی و مسکن', id: 'land-allocation' },
+    { label: 'شهرسازی و معماری', id: 'urban-planning' },
+    { label: 'راه و حمل‌و‌نقل', id: 'roads-transport' },
+    { label: 'آرشیو اخبار', id: 'news' },
+    { label: 'نقشه پروژه‌ها', id: 'interactive-map' },
+    { label: 'ارتباط با ما', id: 'footer' },
+  ];
+
+  const toggleHighContrast = () => {
+    const nextState = !isHighContrast;
+    setIsHighContrast(nextState);
+    if (nextState) {
+      document.body.classList.add('high-contrast');
+    } else {
+      document.body.classList.remove('high-contrast');
+    }
+  };
+
+  const handleFontIncrease = () => {
+    if (fontSizeScale < 1.3) setFontSizeScale(fontSizeScale + 0.1);
+  };
+
+  const handleFontDecrease = () => {
+    if (fontSizeScale > 0.9) setFontSizeScale(fontSizeScale - 0.1);
+  };
+
+  const toggleLanguage = () => {
+    const nextLang = currentLang === 'fa' ? 'en' : 'fa';
+    setCurrentLang(nextLang);
+    alert(
+      nextLang === 'en'
+        ? 'English version of this portal is undergoing maintenance. You are browsing the Persian edition.'
+        : 'زبان پورتال به فارسی تغییر یافت.'
+    );
+  };
+
+  const handleSearchSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (searchQuery.trim()) {
+      alert(`جستجو برای عبارت "${searchQuery}" در تارنمای مسکن و شهرسازی یزد...`);
+      setIsSearchOpen(false);
+      setSearchQuery('');
+    }
+  };
+
+  return (
+    <header className={`fixed top-0 left-0 right-0 z-50 w-full text-white transition-all duration-300 ${
+      isScrolled 
+        ? 'backdrop-blur-xl bg-[#152843]/95 shadow-2xl border-b border-white/20 py-0.5' 
+        : 'backdrop-blur-md bg-[#1F3A5F]/80 shadow-lg border-b border-white/10'
+    }`}>
+      {/* Top Bar */}
+      <div className="bg-black/20 backdrop-blur-md py-2 px-4 text-xs font-medium flex flex-wrap justify-between items-center border-b border-white/10">
+        <div className="flex items-center space-x-4 space-x-reverse">
+          <span className="flex items-center gap-1">
+            <i className="fa-solid fa-phone text-[#2A9D8F]"></i>
+            <span className="font-mono">۰۳۵-۳۶۲۳۶۲۰۰</span>
+          </span>
+          <span className="hidden sm:inline-flex items-center gap-1 opacity-90">
+            <i className="fa-solid fa-clock text-[#2A9D8F]"></i>
+            <span>ساعت کاری: ۷:۳۰ الی ۱۴:۳۰</span>
+          </span>
+          <span className="hidden md:inline-flex items-center gap-1 opacity-90">
+            <i className="fa-solid fa-map-location-dot text-[#2A9D8F]"></i>
+            <span>یزد، خیابان مسکن و شهرسازی</span>
+          </span>
+        </div>
+
+        {/* Accessibility & Tools */}
+        <div className="flex items-center gap-3">
+          {/* Font scale buttons */}
+          <div className="flex items-center bg-white/10 rounded px-1.5 py-0.5 border border-white/15">
+            <button
+              onClick={handleFontIncrease}
+              className="px-2 py-0.5 hover:bg-white/15 rounded transition-colors text-[11px]"
+              title="افزایش اندازه قلم (A+)"
+              aria-label="افزایش اندازه قلم"
+            >
+              الف <i className="fa-solid fa-plus text-[8px] mr-0.5"></i>
+            </button>
+            <div className="w-[1px] h-3 bg-white/20 mx-1"></div>
+            <button
+              onClick={handleFontDecrease}
+              className="px-2 py-0.5 hover:bg-white/15 rounded transition-colors text-[11px]"
+              title="کاهش اندازه قلم (A-)"
+              aria-label="کاهش اندازه قلم"
+            >
+              الف <i className="fa-solid fa-minus text-[8px] mr-0.5"></i>
+            </button>
+          </div>
+
+          {/* High Contrast Button */}
+          <button
+            onClick={toggleHighContrast}
+            className={`flex items-center gap-1.5 px-2.5 py-1 rounded transition-all text-xs border ${
+              isHighContrast
+                ? 'bg-[#2A9D8F] text-white border-transparent'
+                : 'bg-white/10 hover:bg-white/20 border-white/20'
+            }`}
+            title="نسخه ویژه نابینایان و کم‌بینایان (کنتراست بالا)"
+            aria-label="نسخه نابینایان"
+          >
+            <i className="fa-solid fa-eye-low-vision"></i>
+            <span className="hidden lg:inline">نسخه نابینایان (کنتراست بالا)</span>
+          </button>
+
+          {/* Search Button */}
+          <button
+            onClick={() => setIsSearchOpen(!isSearchOpen)}
+            className="p-1 px-2.5 rounded bg-white/10 hover:bg-white/20 transition-all text-xs border border-white/20 flex items-center gap-1"
+            title="جستجو در سایت"
+            aria-label="جستجو در سایت"
+          >
+            <i className="fa-solid fa-magnifying-glass"></i>
+            <span className="hidden sm:inline">جستجو</span>
+          </button>
+
+          {/* Language Switcher */}
+          <button
+            onClick={toggleLanguage}
+            className="px-2.5 py-1 text-[11px] font-mono font-bold rounded bg-[#2A9D8F] hover:bg-[#2A9D8F]/90 text-white transition-all"
+            title="Change Language / تغییر زبان"
+          >
+            {currentLang === 'fa' ? 'EN' : 'FA'}
+          </button>
+        </div>
+      </div>
+
+      {/* Main Header / Navigation */}
+      <div className="max-w-7xl mx-auto px-4 py-3.5 flex justify-between items-center">
+        {/* Logo and Org Name */}
+        <button 
+          onClick={() => onNavigate('home')} 
+          className="flex items-center gap-3 text-right cursor-pointer group text-white border-0 bg-transparent p-0"
+        >
+          {/* Emblem SVG */}
+          <div className="w-12 h-12 bg-white/95 rounded-xl p-1.5 flex items-center justify-center shadow-md border border-white/30 group-hover:scale-105 transition-transform">
+            <svg viewBox="0 0 100 100" className="w-10 h-10 text-[#1F3A5F]" fill="currentColor">
+              {/* National Emblem & Islamic Star stylized */}
+              <path d="M50 5 L53 14 L62 14 L55 20 L58 29 L50 23 L42 29 L45 20 L38 14 L47 14 Z" fill="#B76E4C" />
+              <path d="M50 25 C35 25 25 35 25 50 C25 65 35 75 50 75 C65 75 75 65 75 50 C75 35 65 25 50 25 Z" fill="none" stroke="#1F3A5F" strokeWidth="4" />
+              {/* Arc & Windcatcher simple icon representation */}
+              <path d="M35 55 L35 65 L40 65 L40 55 Z M45 55 L45 65 L50 65 L50 55 Z M55 55 L55 65 L60 65 L60 55 Z M65 55 L65 65 L70 65 L70 55 Z" fill="#B76E4C" />
+              <path d="M30 52 C30 52 50 42 70 52" fill="none" stroke="#2A9D8F" strokeWidth="4" strokeLinecap="round" />
+            </svg>
+          </div>
+          <div>
+            <h1 className="text-sm md:text-base lg:text-lg font-black tracking-tight text-white group-hover:text-[#E7D3B1] transition-colors">
+              اداره کل راه و شهرسازی استان یزد
+            </h1>
+            <p className="text-[10px] md:text-xs text-[#E7D3B1] font-bold">
+              درگاه هوشمند خدمات الکترونیک راه و مسکن
+            </p>
+          </div>
+        </button>
+
+        {/* Desktop Navigation Menu */}
+        <nav className="hidden lg:flex items-center gap-1 xl:gap-2">
+          {menuItems.map((item) => (
+            <button
+              key={item.id}
+              onClick={() => onNavigate(item.id)}
+              className="px-3 py-2 text-sm font-bold rounded-lg hover:bg-white/10 hover:text-[#E7D3B1] active:scale-95 transition-all text-white/95"
+            >
+              {item.label}
+            </button>
+          ))}
+        </nav>
+
+        {/* Mobile Hamburger Button */}
+        <button
+          onClick={() => setIsMobileMenuOpen(true)}
+          className="lg:hidden p-2 rounded-lg bg-black/10 hover:bg-black/20 transition-colors"
+          aria-label="باز کردن منو"
+        >
+          <i className="fa-solid fa-bars text-xl"></i>
+        </button>
+      </div>
+
+      {/* Floating Inline Search Panel */}
+      {isSearchOpen && (
+        <div className="bg-[#1F3A5F] py-3.5 px-4 shadow-inner border-b border-[#2A9D8F]/30 animate-fade-in-up">
+          <div className="max-w-3xl mx-auto">
+            <form onSubmit={handleSearchSubmit} className="flex gap-2">
+              <input
+                type="text"
+                placeholder="عبارت مورد نظر خود را برای جستجو بنویسید (مثال: فرم ج، مسکن ملی، کارشناسان)..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="flex-1 bg-white text-gray-900 rounded-lg px-4 py-2 text-sm focus:ring-3 focus:ring-[#2A9D8F] focus:outline-none"
+                autoFocus
+              />
+              <button
+                type="submit"
+                className="bg-[#2A9D8F] hover:bg-[#2A9D8F]/90 text-white px-5 py-2 rounded-lg font-bold text-sm transition-colors"
+              >
+                جستجو
+              </button>
+              <button
+                type="button"
+                onClick={() => setIsSearchOpen(false)}
+                className="bg-red-500 hover:bg-red-600 text-white px-3 py-2 rounded-lg text-sm transition-colors"
+              >
+                انصراف
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Mobile Full-Screen Overlay Navigation */}
+      {isMobileMenuOpen && (
+        <div className="fixed inset-0 z-50 bg-[#1F3A5F] flex flex-col justify-between p-6 animate-fade-in-up">
+          <div>
+            {/* Mobile Header Inside Menu */}
+            <div className="flex justify-between items-center border-b border-white/10 pb-4 mb-6">
+              <div className="flex items-center gap-2">
+                <div className="w-10 h-10 bg-white rounded-lg p-1 flex items-center justify-center">
+                  <svg viewBox="0 0 100 100" className="w-8 h-8 text-[#1F3A5F]" fill="currentColor">
+                    <path d="M50 5 L53 14 L62 14 L55 20 L58 29 L50 23 L42 29 L45 20 L38 14 L47 14 Z" fill="#B76E4C" />
+                    <circle cx="50" cy="55" r="20" fill="none" stroke="#1F3A5F" strokeWidth="4" />
+                  </svg>
+                </div>
+                <div>
+                  <h2 className="text-sm font-bold text-white">راه و شهرسازی یزد</h2>
+                  <p className="text-[10px] text-[#E7D3B1]">سامانه خدمات مردمی</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setIsMobileMenuOpen(false)}
+                className="w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors"
+                aria-label="بستن منو"
+              >
+                <i className="fa-solid fa-xmark text-lg text-white"></i>
+              </button>
+            </div>
+
+            {/* Mobile Navigation Links */}
+            <nav className="flex flex-col gap-2">
+              {menuItems.map((item) => (
+                <button
+                  key={item.id}
+                  onClick={() => {
+                    setIsMobileMenuOpen(false);
+                    onNavigate(item.id);
+                  }}
+                  className="w-full text-right px-4 py-3 text-base font-bold text-white hover:bg-[#B76E4C] rounded-lg transition-colors flex items-center justify-between"
+                >
+                  <span>{item.label}</span>
+                  <i className="fa-solid fa-chevron-left text-xs opacity-65"></i>
+                </button>
+              ))}
+            </nav>
+          </div>
+
+          {/* Mobile Menu Footer Info */}
+          <div className="border-t border-white/10 pt-4 text-center">
+            <p className="text-xs text-[#E7D3B1] mb-2">تلفن گویا پشتیبانی خدمات الکترونیک:</p>
+            <p className="text-lg font-bold text-white font-mono">۰۳۵-۳۶۲۳۵۰۶۰</p>
+          </div>
+        </div>
+      )}
+    </header>
+  );
+}

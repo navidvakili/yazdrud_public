@@ -1,0 +1,6 @@
+{
+  "name": "Yazd Roads and Urban Development Portal",
+  "description": "پورتال هوشمند خدمات اداره کل راه و شهرسازی استان یزد با الهام از معماری اصیل خشتی و بادگیرهای یزد",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
