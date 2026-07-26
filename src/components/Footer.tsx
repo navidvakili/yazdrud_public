@@ -19,10 +19,10 @@ export default function Footer({ fontSizeScale, onNavigate }: FooterProps) {
       {/* Decorative Subtle Line top */}
       <div className="absolute top-0 left-0 right-0 h-[1.5px] bg-white/25 pointer-events-none"></div>
 
-      <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-10">
-        
-        {/* Column 1: Intro and National Emblem (4 Cols) */}
-        <div className="lg:col-span-4 space-y-4">
+      <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-10">
+
+        {/* Column 1: Intro and National Emblem */}
+        <div className="space-y-4">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-lg p-1 flex items-center justify-center">
               <img 
@@ -73,8 +73,8 @@ export default function Footer({ fontSizeScale, onNavigate }: FooterProps) {
           </div>
         </div>
 
-        {/* Column 2: Quick Links (2.5 Cols) */}
-        <div className="lg:col-span-2.5 space-y-3">
+        {/* Column 2: Quick Links */}
+        <div className="space-y-3">
           <h4 className="text-sm font-black text-[#E7D3B1] border-r-4 border-[#2A9D8F] pr-2">دسترسی سریع</h4>
           <ul className="space-y-2 text-xs font-bold text-gray-300">
             <li>
@@ -104,8 +104,8 @@ export default function Footer({ fontSizeScale, onNavigate }: FooterProps) {
           </ul>
         </div>
 
-        {/* Column 3: Related Systems (2.5 Cols) */}
-        <div className="lg:col-span-2.5 space-y-3">
+        {/* Column 3: Related Systems */}
+        <div className="space-y-3">
           <h4 className="text-sm font-black text-[#E7D3B1] border-r-4 border-[#C98A5A] pr-2">سامانه‌های مرتبط دولتی</h4>
           <ul className="space-y-2 text-xs font-bold text-gray-300">
             <li>
@@ -135,8 +135,8 @@ export default function Footer({ fontSizeScale, onNavigate }: FooterProps) {
           </ul>
         </div>
 
-        {/* Column 4: Address and Contacts (3 Cols) */}
-        <div className="lg:col-span-3 space-y-3">
+        {/* Column 4: Address and Contacts */}
+        <div className="space-y-3">
           <h4 className="text-sm font-black text-[#E7D3B1] border-r-4 border-[#B76E4C] pr-2">اطلاعات ارتباطی</h4>
           <ul className="space-y-2.5 text-xs text-gray-300 font-medium leading-relaxed">
             <li className="flex items-start gap-2">
@@ -145,15 +145,15 @@ export default function Footer({ fontSizeScale, onNavigate }: FooterProps) {
             </li>
             <li className="flex items-center gap-2">
               <i className="fa-solid fa-phone text-[#2A9D8F] text-[11px]"></i>
-              <span className="font-mono">تلفن: ۰۳۵-۳۶۲۳۶۲۰۰</span>
+              <span>تلفن: <span dir="ltr" className="font-mono">035-36236200</span></span>
             </li>
             <li className="flex items-center gap-2">
               <i className="fa-solid fa-fax text-[#C98A5A] text-[11px]"></i>
-              <span className="font-mono">نمابر دبیرخانه: ۰۳۵-۳۶۲۳۵۰۶۵</span>
+              <span>نمابر دبیرخانه: <span dir="ltr" className="font-mono">035-36235065</span></span>
             </li>
             <li className="flex items-center gap-2">
               <i className="fa-solid fa-envelope text-white/60 text-[11px]"></i>
-              <span className="font-mono">پست الکترونیک: yazd@mrud.ir</span>
+              <span>پست الکترونیک: <span dir="ltr" className="font-mono">info@yazdrud.ir</span></span>
             </li>
           </ul>
         </div>
@@ -170,11 +170,16 @@ export default function Footer({ fontSizeScale, onNavigate }: FooterProps) {
           <strong className="text-white">اداره کل راه و شهرسازی استان یزد</strong>
           <span> می‌باشد. {currentYearPersian} ©</span>
         </div>
-        <div className="flex items-center gap-1.5 font-mono">
-          <span>طراحی هوشمند: </span>
-          <span className="bg-[#2A9D8F] text-white px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider">
-            Yazd Heritage Design System
-          </span>
+        <div className="flex items-center gap-1.5">
+          <span>طراحی و توسعه: </span>
+          <a
+            href="https://karanet.info"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="bg-[#2A9D8F] text-white px-2 py-0.5 rounded text-[10px] font-black hover:bg-[#1F3A5F] transition-colors"
+          >
+            شرکت فناوری اطلاعات کارانت
+          </a>
         </div>
       </div>
     </footer>
