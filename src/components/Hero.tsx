@@ -152,25 +152,6 @@ export default function Hero({ onNavigate }: HeroProps) {
         );
       })}
 
-      {/* Yazd Skyline Vector Overlay in background */}
-      <div className="absolute inset-x-0 bottom-12 pointer-events-none z-10 opacity-[0.08] flex items-end justify-center">
-        <svg
-          viewBox="0 0 1000 250"
-          className="w-full max-w-7xl h-auto"
-          preserveAspectRatio="none"
-          fill="currentColor"
-        >
-          {/* Amir Chakhmaq structure & arches */}
-          <rect x="50" y="100" width="180" height="150" />
-          <path d="M50 100 Q140 0 230 100 Z" />
-          {/* Windcatchers */}
-          <rect x="290" y="30" width="45" height="220" />
-          <rect x="280" y="20" width="65" height="15" />
-          <path d="M380 250 C380 130 520 130 520 250 Z" />
-          <rect x="570" y="60" width="40" height="190" />
-        </svg>
-      </div>
-
       {/* Slide Navigation Arrows */}
       {/* Next Button (Left in RTL) */}
       <button
