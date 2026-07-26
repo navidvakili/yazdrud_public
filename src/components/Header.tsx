@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 
 interface HeaderProps {
   fontSizeScale: number;
@@ -82,7 +83,8 @@ export default function Header({
   };
 
   return (
-    <header className={`fixed top-0 left-0 right-0 z-50 w-full text-white transition-all duration-300 ${
+    <>
+    <header className={`fixed top-0 left-0 right-0 z-40 w-full text-white transition-all duration-300 ${
       isScrolled 
         ? 'backdrop-blur-xl bg-[#152843]/95 shadow-2xl border-b border-white/20 py-0.5' 
         : 'backdrop-blur-md bg-[#1F3A5F]/80 shadow-lg border-b border-white/10'
@@ -243,59 +245,64 @@ export default function Header({
         </div>
       )}
 
-      {/* Mobile Full-Screen Overlay Navigation */}
-      {isMobileMenuOpen && (
-        <div className="fixed inset-0 z-50 bg-[#1F3A5F] flex flex-col justify-between p-6 animate-fade-in-up">
-          <div>
-            {/* Mobile Header Inside Menu */}
-            <div className="flex justify-between items-center border-b border-white/10 pb-4 mb-6">
-              <div className="flex items-center gap-2">
-                <div className="w-10 h-10 rounded-lg p-1 flex items-center justify-center">
-                  <img 
-                    src="/assets/images/logo-white.png" 
-                    alt="لوگو اداره کل راه و شهرسازی استان یزد"
-                    className="w-full h-full object-contain"
-                  />
+    </header>
+
+      {/* Mobile Full-Screen Overlay Navigation - Portaled to body to escape header's backdrop-blur */}
+      {createPortal(
+        isMobileMenuOpen && (
+          <div className="fixed inset-0 z-[9999] flex flex-col justify-between p-6 animate-fade-in-up" style={{ backgroundColor: '#0F2440' }}>
+            <div>
+              {/* Mobile Header Inside Menu */}
+              <div className="flex justify-between items-center border-b border-white/10 pb-4 mb-6">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 rounded-lg p-1 flex items-center justify-center shrink-0">
+                    <img 
+                      src="/assets/images/logo-white.png" 
+                      alt="لوگو اداره کل راه و شهرسازی استان یزد"
+                      className="w-full h-full object-contain"
+                    />
+                  </div>
+                  <div>
+                    <h2 className="text-sm font-black text-white leading-tight">اداره کل راه و شهرسازی استان یزد</h2>
+                    <p className="text-[10px] text-[#E7D3B1] font-medium">پورتال خدمات هوشمند و توسعه محور</p>
+                  </div>
                 </div>
-                <div>
-                  <h2 className="text-sm font-bold text-white">راه و شهرسازی یزد</h2>
-                  <p className="text-[10px] text-[#E7D3B1]">سامانه خدمات مردمی</p>
-                </div>
+                <button
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className="w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors"
+                  aria-label="بستن منو"
+                >
+                  <i className="fa-solid fa-xmark text-lg text-white"></i>
+                </button>
               </div>
-              <button
-                onClick={() => setIsMobileMenuOpen(false)}
-                className="w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors"
-                aria-label="بستن منو"
-              >
-                <i className="fa-solid fa-xmark text-lg text-white"></i>
-              </button>
+
+              {/* Mobile Navigation Links */}
+              <nav className="flex flex-col gap-2">
+                {menuItems.map((item) => (
+                  <button
+                    key={item.id}
+                    onClick={() => {
+                      setIsMobileMenuOpen(false);
+                      onNavigate(item.id);
+                    }}
+                    className="w-full text-right px-4 py-3 text-base font-bold text-white hover:bg-[#B76E4C] rounded-lg transition-colors flex items-center justify-between"
+                  >
+                    <span>{item.label}</span>
+                    <i className="fa-solid fa-chevron-left text-xs opacity-65"></i>
+                  </button>
+                ))}
+              </nav>
             </div>
 
-            {/* Mobile Navigation Links */}
-            <nav className="flex flex-col gap-2">
-              {menuItems.map((item) => (
-                <button
-                  key={item.id}
-                  onClick={() => {
-                    setIsMobileMenuOpen(false);
-                    onNavigate(item.id);
-                  }}
-                  className="w-full text-right px-4 py-3 text-base font-bold text-white hover:bg-[#B76E4C] rounded-lg transition-colors flex items-center justify-between"
-                >
-                  <span>{item.label}</span>
-                  <i className="fa-solid fa-chevron-left text-xs opacity-65"></i>
-                </button>
-              ))}
-            </nav>
+            {/* Mobile Menu Footer Info */}
+            <div className="border-t border-white/10 pt-4 text-center">
+              <p className="text-xs text-[#E7D3B1] mb-2">تلفن گویا پشتیبانی خدمات الکترونیک:</p>
+              <p className="text-lg font-bold text-white font-mono">۰۳۵-۳۶۲۳۵۰۶۰</p>
+            </div>
           </div>
-
-          {/* Mobile Menu Footer Info */}
-          <div className="border-t border-white/10 pt-4 text-center">
-            <p className="text-xs text-[#E7D3B1] mb-2">تلفن گویا پشتیبانی خدمات الکترونیک:</p>
-            <p className="text-lg font-bold text-white font-mono">۰۳۵-۳۶۲۳۵۰۶۰</p>
-          </div>
-        </div>
+        ),
+        document.body
       )}
-    </header>
+    </>
   );
 }
