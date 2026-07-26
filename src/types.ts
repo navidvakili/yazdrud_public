@@ -33,6 +33,7 @@ export interface CountyData {
   roadProjects: number;
   housingUnits: number;
   urbanPlans: number;
+  hasHousingWorkshop?: boolean;
   description: string;
 }
 

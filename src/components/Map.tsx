@@ -223,19 +223,34 @@ export default function Map({ fontSizeScale }: MapProps) {
                         </circle>
                       )}
 
+                      {/* Housing workshop marker (dark blue circle) */}
+                      {county.hasHousingWorkshop && (
+                        <circle
+                          cx={cx}
+                          cy={cy}
+                          r={county.roadProjects > 20 ? (isSelected ? 4.5 : 3.5) : (isSelected ? 6 : isHovered ? 5 : 3.5)}
+                          fill="#1F3A5F"
+                          stroke="white"
+                          strokeWidth={isSelected ? 1.5 : 1}
+                          className="transition-all duration-300"
+                        />
+                      )}
+
                       {/* Marker dot */}
-                      <circle
-                        cx={cx}
-                        cy={cy}
-                        r={isSelected ? 6 : isHovered ? 5 : 3.5}
-                        fill={isSelected ? '#2A9D8F' : isHovered ? '#2A9D8F' : '#B76E4C'}
-                        stroke="white"
-                        strokeWidth={isSelected ? 2 : 1.5}
-                        className="transition-all duration-300"
-                        style={{
-                          filter: isSelected ? 'drop-shadow(0 0 4px rgba(42,157,143,0.6))' : 'none',
-                        }}
-                      />
+                      {!county.hasHousingWorkshop && (
+                        <circle
+                          cx={cx}
+                          cy={cy}
+                          r={isSelected ? 6 : isHovered ? 5 : 3.5}
+                          fill={isSelected ? '#2A9D8F' : isHovered ? '#2A9D8F' : '#B76E4C'}
+                          stroke="white"
+                          strokeWidth={isSelected ? 2 : 1.5}
+                          className="transition-all duration-300"
+                          style={{
+                            filter: isSelected ? 'drop-shadow(0 0 4px rgba(42,157,143,0.6))' : 'none',
+                          }}
+                        />
+                      )}
 
                       {/* County Name Label */}
                       <text

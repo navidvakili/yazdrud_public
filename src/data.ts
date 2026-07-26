@@ -162,6 +162,7 @@ export const COUNTIES_DATA: CountyData[] = [
     roadProjects: 45,
     housingUnits: 4820,
     urbanPlans: 12,
+    hasHousingWorkshop: true,
     description: 'مرکز استان و کانون توسعه با بزرگترین پروژه‌های انبوه‌سازی مسکن و تقاطع‌های غیرهمسطح.'
   },
   {
@@ -202,6 +203,7 @@ export const COUNTIES_DATA: CountyData[] = [
     roadProjects: 15,
     housingUnits: 1180,
     urbanPlans: 5,
+    hasHousingWorkshop: true,
     description: 'دروازه جنوبی استان با احداث کمربندی جدید و ساخت خانه‌های ویلایی یک طبقه در طرح مسکن ملی.'
   },
   {
@@ -262,6 +264,7 @@ export const COUNTIES_DATA: CountyData[] = [
     roadProjects: 6,
     housingUnits: 380,
     urbanPlans: 2,
+    hasHousingWorkshop: true,
     description: 'شهرستان شرق یزد با تمرکز بر توسعه راه‌های روستایی و طرح‌های مسکن ملی حومه‌ای.'
   },
   {
