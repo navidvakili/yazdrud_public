@@ -24,11 +24,12 @@ export default function Footer({ fontSizeScale, onNavigate }: FooterProps) {
         {/* Column 1: Intro and National Emblem (4 Cols) */}
         <div className="lg:col-span-4 space-y-4">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-white rounded-lg p-1 flex items-center justify-center">
-              <svg viewBox="0 0 100 100" className="w-8 h-8 text-[#1F3A5F]" fill="currentColor">
-                <path d="M50 5 L53 14 L62 14 L55 20 L58 29 L50 23 L42 29 L45 20 L38 14 L47 14 Z" fill="#B76E4C" />
-                <circle cx="50" cy="55" r="20" fill="none" stroke="#1F3A5F" strokeWidth="4" />
-              </svg>
+            <div className="w-10 h-10 rounded-lg p-1 flex items-center justify-center">
+              <img 
+                src="/src/assets/images/logo-white.png" 
+                alt="لوگو اداره کل راه و شهرسازی استان یزد"
+                className="w-full h-full object-contain"
+              />
             </div>
             <div>
               <h4 className="text-base font-black text-white">اداره کل راه و شهرسازی استان یزد</h4>

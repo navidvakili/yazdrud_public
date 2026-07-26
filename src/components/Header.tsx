@@ -171,16 +171,13 @@ export default function Header({
           onClick={() => onNavigate('home')} 
           className="flex items-center gap-3 text-right cursor-pointer group text-white border-0 bg-transparent p-0"
         >
-          {/* Emblem SVG */}
-          <div className="w-12 h-12 bg-white/95 rounded-xl p-1.5 flex items-center justify-center shadow-md border border-white/30 group-hover:scale-105 transition-transform">
-            <svg viewBox="0 0 100 100" className="w-10 h-10 text-[#1F3A5F]" fill="currentColor">
-              {/* National Emblem & Islamic Star stylized */}
-              <path d="M50 5 L53 14 L62 14 L55 20 L58 29 L50 23 L42 29 L45 20 L38 14 L47 14 Z" fill="#B76E4C" />
-              <path d="M50 25 C35 25 25 35 25 50 C25 65 35 75 50 75 C65 75 75 65 75 50 C75 35 65 25 50 25 Z" fill="none" stroke="#1F3A5F" strokeWidth="4" />
-              {/* Arc & Windcatcher simple icon representation */}
-              <path d="M35 55 L35 65 L40 65 L40 55 Z M45 55 L45 65 L50 65 L50 55 Z M55 55 L55 65 L60 65 L60 55 Z M65 55 L65 65 L70 65 L70 55 Z" fill="#B76E4C" />
-              <path d="M30 52 C30 52 50 42 70 52" fill="none" stroke="#2A9D8F" strokeWidth="4" strokeLinecap="round" />
-            </svg>
+          {/* Logo Image */}
+          <div className="w-12 h-12 rounded-xl flex items-center justify-center shadow-md group-hover:scale-105 transition-transform">
+            <img 
+              src="/src/assets/images/logo-white.png" 
+              alt="لوگو اداره کل راه و شهرسازی استان یزد"
+              className="w-full h-full object-contain"
+            />
           </div>
           <div>
             <h1 className="text-sm md:text-base lg:text-lg font-black tracking-tight text-white group-hover:text-[#E7D3B1] transition-colors">
@@ -253,11 +250,12 @@ export default function Header({
             {/* Mobile Header Inside Menu */}
             <div className="flex justify-between items-center border-b border-white/10 pb-4 mb-6">
               <div className="flex items-center gap-2">
-                <div className="w-10 h-10 bg-white rounded-lg p-1 flex items-center justify-center">
-                  <svg viewBox="0 0 100 100" className="w-8 h-8 text-[#1F3A5F]" fill="currentColor">
-                    <path d="M50 5 L53 14 L62 14 L55 20 L58 29 L50 23 L42 29 L45 20 L38 14 L47 14 Z" fill="#B76E4C" />
-                    <circle cx="50" cy="55" r="20" fill="none" stroke="#1F3A5F" strokeWidth="4" />
-                  </svg>
+                <div className="w-10 h-10 rounded-lg p-1 flex items-center justify-center">
+                  <img 
+                    src="/src/assets/images/logo-white.png" 
+                    alt="لوگو اداره کل راه و شهرسازی استان یزد"
+                    className="w-full h-full object-contain"
+                  />
                 </div>
                 <div>
                   <h2 className="text-sm font-bold text-white">راه و شهرسازی یزد</h2>
