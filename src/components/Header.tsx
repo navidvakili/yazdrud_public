@@ -174,7 +174,7 @@ export default function Header({
           {/* Logo Image */}
           <div className="w-12 h-12 rounded-xl flex items-center justify-center shadow-md group-hover:scale-105 transition-transform">
             <img 
-              src="/src/assets/images/logo-white.png" 
+              src="/assets/images/logo-white.png" 
               alt="لوگو اداره کل راه و شهرسازی استان یزد"
               className="w-full h-full object-contain"
             />
@@ -252,7 +252,7 @@ export default function Header({
               <div className="flex items-center gap-2">
                 <div className="w-10 h-10 rounded-lg p-1 flex items-center justify-center">
                   <img 
-                    src="/src/assets/images/logo-white.png" 
+                    src="/assets/images/logo-white.png" 
                     alt="لوگو اداره کل راه و شهرسازی استان یزد"
                     className="w-full h-full object-contain"
                   />

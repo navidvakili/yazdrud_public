@@ -26,7 +26,7 @@ export default function Footer({ fontSizeScale, onNavigate }: FooterProps) {
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-lg p-1 flex items-center justify-center">
               <img 
-                src="/src/assets/images/logo-white.png" 
+                src="/assets/images/logo-white.png" 
                 alt="لوگو اداره کل راه و شهرسازی استان یزد"
                 className="w-full h-full object-contain"
               />
