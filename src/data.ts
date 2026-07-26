@@ -157,8 +157,8 @@ export const COUNTIES_DATA: CountyData[] = [
   {
     id: 'yazd',
     name: 'یزد',
-    x: 250,
-    y: 220,
+    x: 268, // مرکز استان
+    y: 212,
     roadProjects: 45,
     housingUnits: 4820,
     urbanPlans: 12,
@@ -167,8 +167,8 @@ export const COUNTIES_DATA: CountyData[] = [
   {
     id: 'meybod',
     name: 'میبد',
-    x: 180,
-    y: 150,
+    x: 186, // شمال غرب یزد (واقعی)
+    y: 191,
     roadProjects: 22,
     housingUnits: 1430,
     urbanPlans: 6,
@@ -177,8 +177,8 @@ export const COUNTIES_DATA: CountyData[] = [
   {
     id: 'ardakan',
     name: 'اردکان',
-    x: 140,
-    y: 110,
+    x: 265, // شمال بزرگ‌ترین شهرستان
+    y: 120,
     roadProjects: 35,
     housingUnits: 2550,
     urbanPlans: 8,
@@ -187,8 +187,8 @@ export const COUNTIES_DATA: CountyData[] = [
   {
     id: 'bafq',
     name: 'بافق',
-    x: 340,
-    y: 230,
+    x: 393, // شرق استان
+    y: 234,
     roadProjects: 18,
     housingUnits: 910,
     urbanPlans: 4,
@@ -197,8 +197,8 @@ export const COUNTIES_DATA: CountyData[] = [
   {
     id: 'mehriz',
     name: 'مهریز',
-    x: 280,
-    y: 300,
+    x: 287, // جنوب یزد
+    y: 270,
     roadProjects: 15,
     housingUnits: 1180,
     urbanPlans: 5,
@@ -207,8 +207,8 @@ export const COUNTIES_DATA: CountyData[] = [
   {
     id: 'taft',
     name: 'تفت',
-    x: 190,
-    y: 250,
+    x: 195, // جنوب غرب یزد (واقعی)
+    y: 278,
     roadProjects: 12,
     housingUnits: 790,
     urbanPlans: 4,
@@ -217,8 +217,8 @@ export const COUNTIES_DATA: CountyData[] = [
   {
     id: 'abarkuh',
     name: 'ابرکوه',
-    x: 80,
-    y: 320,
+    x: 153, // غربی‌ترین نقطه استان
+    y: 303,
     roadProjects: 14,
     housingUnits: 650,
     urbanPlans: 3,
@@ -227,8 +227,8 @@ export const COUNTIES_DATA: CountyData[] = [
   {
     id: 'ashkezar',
     name: 'اشکذر',
-    x: 220,
-    y: 170,
+    x: 224, // بین یزد و میبد
+    y: 194,
     roadProjects: 8,
     housingUnits: 520,
     urbanPlans: 3,
@@ -237,8 +237,8 @@ export const COUNTIES_DATA: CountyData[] = [
   {
     id: 'behabad',
     name: 'بهاباد',
-    x: 410,
-    y: 190,
+    x: 446, // شرقی‌ترین نقطه استان
+    y: 208,
     roadProjects: 10,
     housingUnits: 495,
     urbanPlans: 2,
@@ -247,11 +247,31 @@ export const COUNTIES_DATA: CountyData[] = [
   {
     id: 'khatam',
     name: 'خاتم',
-    x: 230,
-    y: 400,
+    x: 231, // جنوبی‌ترین نقطه
+    y: 401,
     roadProjects: 11,
     housingUnits: 410,
     urbanPlans: 2,
     description: 'قطب کشاورزی با تمرکز بر آسفالت راه‌های بین‌مزارع و بهسازی ورودی شهر هرات.'
+  },
+  {
+    id: 'zarch',
+    name: 'زارچ',
+    x: 270,
+    y: 189,
+    roadProjects: 6,
+    housingUnits: 380,
+    urbanPlans: 2,
+    description: 'شهرستان شرق یزد با تمرکز بر توسعه راه‌های روستایی و طرح‌های مسکن ملی حومه‌ای.'
+  },
+  {
+    id: 'marvast',
+    name: 'مروست',
+    x: 258,
+    y: 463,
+    roadProjects: 5,
+    housingUnits: 290,
+    urbanPlans: 1,
+    description: 'منطقه دورافتاده جنوب استان با محور مواصلاتی خاتم-مروست و طرح‌های بهسازی راه‌های کوهستانی.'
   }
 ];
