@@ -4,7 +4,7 @@ import { NewsItem } from '../types';
 
 interface NewsProps {
   fontSizeScale: number;
-  onNavigate?: (page: string, newsId?: number) => void;
+  onNavigate?: (page: string, newsId?: number, newsTitle?: string) => void;
 }
 
 export default function News({ fontSizeScale, onNavigate }: NewsProps) {
@@ -146,7 +146,7 @@ export default function News({ fontSizeScale, onNavigate }: NewsProps) {
             <article
               key={news.id}
               onClick={() => {
-                if (onNavigate) onNavigate('news', news.id);
+                if (onNavigate) onNavigate('news', news.id, news.title);
               }}
               className="group glass-card rounded-2xl overflow-hidden shadow-lg transition-all flex flex-col justify-between cursor-pointer border border-white/35"
             >

@@ -58,6 +58,19 @@ export default function NewsArchivePage({ fontSizeScale, onNavigate, selectedNew
     setActiveArticle(news);
     fetchArticleDetail(news.id);
     loadComments(news.id);
+    // به‌روزرسانی URL با عنوان خبر برای سئو
+    const seoUrl = `/اخبار/${news.id}/${news.title.replace(/\s+/g, '-').replace(/[^\w\u0600-\u06FF\s-]/g, '').trim()}`;
+    window.history.pushState({ page: 'news', newsId: news.id, newsTitle: news.title }, '', seoUrl);
+    document.title = `${news.title} | آرشیو جامع اخبار و اطلاعیه‌ها | اداره کل راه و شهرسازی استان یزد`;
+
+    // به‌روزرسانی لینک canonical
+    let link = document.querySelector('link[rel="canonical"]');
+    if (!link) {
+      link = document.createElement('link');
+      link.setAttribute('rel', 'canonical');
+      document.head.appendChild(link);
+    }
+    link.setAttribute('href', window.location.origin + seoUrl);
   };
 
   useEffect(() => {
@@ -154,6 +167,8 @@ export default function NewsArchivePage({ fontSizeScale, onNavigate, selectedNew
             setActiveArticle(null);
             setArticleDetail(null);
             setSelectedCategory('همه');
+            window.history.pushState({ page: 'news' }, '', '/اخبار');
+            document.title = 'آرشیو جامع اخبار و اطلاعیه‌ها | اداره کل راه و شهرسازی استان یزد';
           },
         },
         {
@@ -162,6 +177,8 @@ export default function NewsArchivePage({ fontSizeScale, onNavigate, selectedNew
             setActiveArticle(null);
             setArticleDetail(null);
             if (activeArticle.category_name) setSelectedCategory(activeArticle.category_name);
+            window.history.pushState({ page: 'news' }, '', '/اخبار');
+            document.title = 'آرشیو جامع اخبار و اطلاعیه‌ها | اداره کل راه و شهرسازی استان یزد';
           },
         },
         { label: activeArticle.title, active: true },
@@ -200,7 +217,12 @@ export default function NewsArchivePage({ fontSizeScale, onNavigate, selectedNew
               {/* Back to archive header */}
               <div className="flex justify-between items-center bg-white p-4 rounded-2xl shadow-sm border border-gray-200">
                 <button
-                  onClick={() => { setActiveArticle(null); setArticleDetail(null); }}
+                onClick={() => {
+                  setActiveArticle(null);
+                  setArticleDetail(null);
+                  window.history.pushState({ page: 'news' }, '', '/اخبار');
+                  document.title = 'آرشیو جامع اخبار و اطلاعیه‌ها | اداره کل راه و شهرسازی استان یزد';
+                }}
                   className="px-4 py-2 rounded-xl bg-[#1F3A5F] hover:bg-[#1F3A5F]/90 text-white font-extrabold text-xs flex items-center gap-2 cursor-pointer transition-all"
                 >
                   <i className="fa-solid fa-arrow-right"></i>

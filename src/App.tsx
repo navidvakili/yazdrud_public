@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Header from './components/Header';
 import Hero from './components/Hero';
 import Services from './components/Services';
@@ -14,6 +14,14 @@ import RoadsTransportPage from './components/pages/RoadsTransportPage';
 import ServicesPage from './components/pages/ServicesPage';
 
 import { ActivePage } from './types';
+import {
+  resolveRoute,
+  buildRoute,
+  getInitialRoute,
+  updatePageMeta,
+  updateCanonical,
+  RouteKey,
+} from './router';
 
 export default function App() {
   const [fontSizeScale, setFontSizeScale] = useState<number>(1.0);
@@ -22,30 +30,66 @@ export default function App() {
   const [selectedNewsId, setSelectedNewsId] = useState<number | null>(null);
   const [selectedServiceId, setSelectedServiceId] = useState<number | null>(null);
 
-  const handleNavigate = (pageOrSection: string, itemId?: number) => {
+  // ========== مسیریابی مبتنی بر URL ==========
+
+  /** تنظیم صفحه و متا از روی RouteKey */
+  const applyRoute = (routeKey: RouteKey, extra?: { newsId?: number; newsTitle?: string }) => {
+    setCurrentPage(routeKey as ActivePage);
+    if (routeKey === 'news') {
+      setSelectedNewsId(extra?.newsId ?? null);
+    }
+    updatePageMeta(routeKey, extra?.newsTitle || undefined);
+    updateCanonical(buildRoute(routeKey, extra));
+  };
+
+  /** به‌روزرسانی URL بدون رفرش */
+  const pushUrl = (routeKey: RouteKey, extra?: { newsId?: number; newsTitle?: string }) => {
+    const url = buildRoute(routeKey, extra);
+    window.history.pushState({ page: routeKey, ...extra }, '', url);
+    applyRoute(routeKey, extra);
+  };
+
+  /** مقداردهی اولیه از URL */
+  useEffect(() => {
+    const initial = getInitialRoute();
+    applyRoute(initial.page, initial.newsId ? { newsId: initial.newsId } : undefined);
+    setSelectedNewsId(initial.newsId ?? null);
+
+    // گوش دادن به دکمه‌های بازگشت/جلو مرورگر
+    const handlePopState = (e: PopStateEvent) => {
+      const route = resolveRoute(window.location.pathname);
+      applyRoute(route.page, route.newsId ? { newsId: route.newsId } : undefined);
+      setSelectedNewsId(route.newsId ?? null);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const handleNavigate = (pageOrSection: string, itemId?: number, itemTitle?: string) => {
     if (pageOrSection === 'news' || pageOrSection === 'news-archive') {
-      setCurrentPage('news');
-      setSelectedNewsId(itemId || null);
+      pushUrl('news', itemId ? { newsId: itemId, newsTitle: itemTitle } : undefined);
       window.scrollTo({ top: 0, behavior: 'smooth' });
     } else if (pageOrSection === 'services' || pageOrSection === 'e-services') {
-      setCurrentPage('services');
+      pushUrl('services', itemId ? { newsId: itemId } : undefined);
       setSelectedServiceId(itemId || null);
       window.scrollTo({ top: 0, behavior: 'smooth' });
     } else if (pageOrSection === 'land-allocation' || pageOrSection === 'housing-movement') {
-      setCurrentPage('land-allocation');
+      pushUrl('land-allocation');
       window.scrollTo({ top: 0, behavior: 'smooth' });
     } else if (pageOrSection === 'urban-planning') {
-      setCurrentPage('urban-planning');
+      pushUrl('urban-planning');
       window.scrollTo({ top: 0, behavior: 'smooth' });
     } else if (pageOrSection === 'roads-transport') {
-      setCurrentPage('roads-transport');
+      pushUrl('roads-transport');
       window.scrollTo({ top: 0, behavior: 'smooth' });
     } else if (pageOrSection === 'home' || pageOrSection === 'hero') {
-      setCurrentPage('home');
+      pushUrl('home');
       window.scrollTo({ top: 0, behavior: 'smooth' });
     } else {
       if (currentPage !== 'home') {
-        setCurrentPage('home');
+        pushUrl('home');
         setTimeout(() => {
           const targetElement = document.getElementById(pageOrSection);
           if (targetElement) {
