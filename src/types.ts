@@ -1,5 +1,12 @@
 export type ActivePage = 'home' | 'news' | 'land-allocation' | 'urban-planning' | 'roads-transport' | 'services';
 
+export interface NewsComment {
+  id: number;
+  author_name: string;
+  content: string;
+  created_at: string;
+}
+
 export interface NewsItem {
   id: number;
   title: string;
@@ -14,6 +21,9 @@ export interface NewsItem {
   views_count: number;
   likes_count: number;
   is_pinned: boolean;
+  comments_enabled: boolean;
+  comments_count: number;
+  comments?: NewsComment[];
   status: 'published' | 'draft' | 'archived';
   tags: string[];
   published_at: string | null;

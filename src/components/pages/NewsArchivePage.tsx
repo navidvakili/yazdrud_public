@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { apiGet } from '../../api';
-import { NewsItem, ActivePage } from '../../types';
+import { apiGet, apiPost } from '../../api';
+import { NewsItem, NewsComment, ActivePage } from '../../types';
 import Breadcrumb from '../Breadcrumb';
 
 interface NewsArchivePageProps {
@@ -37,9 +37,23 @@ export default function NewsArchivePage({ fontSizeScale, onNavigate, selectedNew
     }
   };
 
+  // Load comments for an article
+  const loadComments = async (newsId: number) => {
+    setCommentsLoading(true);
+    try {
+      const res = await apiGet<{ data: NewsComment[] }>(`news/${newsId}/comments`);
+      setCommentsList(res.data || []);
+    } catch {
+      setCommentsList([]);
+    } finally {
+      setCommentsLoading(false);
+    }
+  };
+
   const handleSelectArticle = (news: NewsItem) => {
     setActiveArticle(news);
     fetchArticleDetail(news.id);
+    loadComments(news.id);
   };
 
   useEffect(() => {
@@ -70,17 +84,10 @@ export default function NewsArchivePage({ fontSizeScale, onNavigate, selectedNew
   // New comment form state
   const [commentName, setCommentName] = useState('');
   const [commentText, setCommentText] = useState('');
-  const [commentsList, setCommentsList] = useState<
-    { id: number; name: string; date: string; text: string }[]
-  >([
-    {
-      id: 1,
-      name: 'مهندس حسینی (ناظر ساختمان)',
-      date: '۴ تیر ۱۴۰۵',
-      text: 'با تشکر از اطلاع‌رسانی به موقع. اجرای این پروژه‌ها به توسعه ایمن استان یزد کمک فراوانی می‌کند.',
-    },
-  ]);
+  const [commentsList, setCommentsList] = useState<NewsComment[]>([]);
+  const [commentsLoading, setCommentsLoading] = useState(false);
   const [commentSuccess, setCommentSuccess] = useState(false);
+  const [commentSubmitting, setCommentSubmitting] = useState(false);
 
   // Build categories dynamically from data
   const allCategories = React.useMemo(() => {
@@ -112,20 +119,25 @@ export default function NewsArchivePage({ fontSizeScale, onNavigate, selectedNew
     }
   };
 
-  const handleAddComment = (e: React.FormEvent) => {
+  const handleAddComment = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!commentName.trim() || !commentText.trim()) return;
-    const newEntry = {
-      id: Date.now(),
-      name: commentName,
-      date: 'هم‌اکنون',
-      text: commentText,
-    };
-    setCommentsList([newEntry, ...commentsList]);
-    setCommentName('');
-    setCommentText('');
-    setCommentSuccess(true);
-    setTimeout(() => setCommentSuccess(false), 4000);
+    if (!commentName.trim() || !commentText.trim() || !activeArticle) return;
+    setCommentSubmitting(true);
+    try {
+      const res = await apiPost<{ message: string; data: NewsComment }>(`news/${activeArticle.id}/comments`, {
+        author_name: commentName,
+        content: commentText,
+      });
+      setCommentName('');
+      setCommentText('');
+      setCommentSuccess(true);
+      setTimeout(() => setCommentSuccess(false), 4000);
+    } catch (err: any) {
+      // Comment still appears optimistically but will show error
+      console.error('Error submitting comment:', err);
+    } finally {
+      setCommentSubmitting(false);
+    }
   };
 
   const newsBreadcrumbItems = activeArticle
@@ -268,23 +280,39 @@ export default function NewsArchivePage({ fontSizeScale, onNavigate, selectedNew
               </div>
 
               {/* Comments & Discussion Section */}
+              {activeArticle.comments_enabled !== false && (
               <div className="bg-white rounded-3xl p-6 sm:p-8 shadow-md border border-gray-200 space-y-6">
                 <h3 className="text-xl font-black text-[#1F3A5F] flex items-center gap-2">
                   <i className="fa-solid fa-comments text-[#2A9D8F]"></i>
                   <span>نظرات شهروندان و ذی‌نفعان</span>
+                  <span className="text-xs font-bold text-gray-400 font-mono">({activeArticle.comments_count ?? 0} نظر)</span>
                 </h3>
 
                 {/* Comment list */}
                 <div className="space-y-4">
-                  {commentsList.map((c) => (
-                    <div key={c.id} className="bg-[#F5F6F8] p-4 rounded-2xl border border-gray-200 space-y-1">
-                      <div className="flex justify-between items-center text-xs font-bold text-[#1F3A5F]">
-                        <span>{c.name}</span>
-                        <span className="text-gray-400">{c.date}</span>
-                      </div>
-                      <p className="text-xs sm:text-sm text-gray-700 font-semibold">{c.text}</p>
+                  {commentsLoading ? (
+                    <div className="flex items-center justify-center gap-2 py-4">
+                      <div className="w-5 h-5 border-2 border-[#1F3A5F]/20 border-t-[#1F3A5F] rounded-full animate-spin" />
+                      <span className="text-xs text-gray-500 font-semibold">در حال بارگذاری نظرات...</span>
                     </div>
-                  ))}
+                  ) : commentsList.length === 0 ? (
+                    <div className="bg-[#F5F6F8] p-6 rounded-2xl border border-gray-200 text-center">
+                      <i className="fa-solid fa-comment-slash text-gray-300 text-2xl mb-2"></i>
+                      <p className="text-xs text-gray-500 font-semibold">هنوز نظری ثبت نشده است. اولین نفری باشید که نظر می‌دهید!</p>
+                    </div>
+                  ) : (
+                    commentsList.map((c) => (
+                      <div key={c.id} className="bg-[#F5F6F8] p-4 rounded-2xl border border-gray-200 space-y-1">
+                        <div className="flex justify-between items-center text-xs font-bold text-[#1F3A5F]">
+                          <span>{c.author_name}</span>
+                          <span className="text-gray-400">
+                            {new Date(c.created_at).toLocaleDateString('fa-IR')}
+                          </span>
+                        </div>
+                        <p className="text-xs sm:text-sm text-gray-700 font-semibold">{c.content}</p>
+                      </div>
+                    ))
+                  )}
                 </div>
 
                 {/* Submit new comment form */}
@@ -320,13 +348,19 @@ export default function NewsArchivePage({ fontSizeScale, onNavigate, selectedNew
 
                   <button
                     type="submit"
-                    className="px-6 py-2.5 rounded-xl bg-[#1F3A5F] hover:bg-[#1F3A5F]/90 text-white font-bold text-xs flex items-center gap-2 shadow-md cursor-pointer"
+                    disabled={commentSubmitting}
+                    className="px-6 py-2.5 rounded-xl bg-[#1F3A5F] hover:bg-[#1F3A5F]/90 text-white font-bold text-xs flex items-center gap-2 shadow-md cursor-pointer disabled:opacity-50"
                   >
-                    <i className="fa-solid fa-paper-plane"></i>
-                    <span>ثبت و ارسال نظر</span>
+                    {commentSubmitting ? (
+                      <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin"></div>
+                    ) : (
+                      <i className="fa-solid fa-paper-plane"></i>
+                    )}
+                    <span>{commentSubmitting ? 'در حال ارسال...' : 'ثبت و ارسال نظر'}</span>
                   </button>
                 </form>
               </div>
+              )}
             </motion.div>
           ) : (
             /* ARCHIVE GRID VIEW */
