@@ -293,6 +293,31 @@ export default function NewsArchivePage({ fontSizeScale, onNavigate, selectedNew
                   )}
                 </div>
 
+                {/* Short Link — Copyable */}
+                <div className="border-t border-gray-100 pt-4">
+                  <div className="flex items-center gap-2 text-xs text-gray-500 font-semibold">
+                    <span>🔗 Short link:</span>
+                    <code className="bg-gray-100 px-3 py-1.5 rounded-lg text-gray-700 font-mono text-xs dir-ltr">
+                      yazdrud.ir/n/{activeArticle.id}
+                    </code>
+                    <button
+                      onClick={() => {
+                        navigator.clipboard.writeText(`yazdrud.ir/n/${activeArticle.id}`);
+                        const btn = document.getElementById(`copy-btn-${activeArticle.id}`);
+                        if (btn) {
+                          const orig = btn.innerHTML;
+                          btn.innerHTML = '✅ کپی شد!';
+                          setTimeout(() => btn.innerHTML = orig, 2000);
+                        }
+                      }}
+                      id={`copy-btn-${activeArticle.id}`}
+                      className="px-3 py-1.5 rounded-lg bg-[#1F3A5F] hover:bg-[#1F3A5F]/90 text-white font-bold transition-all cursor-pointer"
+                    >
+                      کپی لینک
+                    </button>
+                  </div>
+                </div>
+
                 {/* Article Tags */}
                 {activeArticle.tags && activeArticle.tags.length > 0 && (
                   <div className="flex items-center gap-2 flex-wrap pt-4 border-t border-gray-100">
