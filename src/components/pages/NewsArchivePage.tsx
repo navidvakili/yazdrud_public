@@ -29,6 +29,10 @@ export default function NewsArchivePage({ fontSizeScale, onNavigate, selectedNew
     try {
       const res = await apiGet<{ data: NewsItem }>(`news/${id}`);
       setArticleDetail(res.data);
+      // Update active article with fresh comments count from detail
+      if (res.data.comments_count !== undefined) {
+        setActiveArticle(prev => prev && prev.id === id ? { ...prev, comments_count: res.data.comments_count } : prev);
+      }
     } catch {
       // fallback: show what we have from list
       setArticleDetail(null);
