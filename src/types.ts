@@ -3,17 +3,21 @@ export type ActivePage = 'home' | 'news' | 'land-allocation' | 'urban-planning' 
 export interface NewsItem {
   id: number;
   title: string;
-  summary: string;
+  summary: string | null;
   content: string;
-  date: string;
-  category: 'مسکن' | 'راه' | 'شهرسازی' | 'سازمانی' | 'مناقصات' | 'بازآفرینی';
-  image: string;
-  views: number;
-  author?: string;
-  code?: string;
-  tags?: string[];
-  gallery?: string[];
-  pdfAttachment?: string;
+  category_id: number | null;
+  category_name: string | null;
+  category_color: string | null;
+  author_username: string;
+  author_name: string | null;
+  image_url: string | null;
+  views_count: number;
+  likes_count: number;
+  is_pinned: boolean;
+  status: 'published' | 'draft' | 'archived';
+  tags: string[];
+  published_at: string | null;
+  created_at: string;
 }
 
 export interface ServiceItem {

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { NEWS_DATA } from '../../data';
+import { apiGet } from '../../api';
 import { NewsItem, ActivePage } from '../../types';
 import Breadcrumb from '../Breadcrumb';
 
@@ -11,22 +11,36 @@ interface NewsArchivePageProps {
 }
 
 export default function NewsArchivePage({ fontSizeScale, onNavigate, selectedNewsId }: NewsArchivePageProps) {
+  const [newsList, setNewsList] = useState<NewsItem[]>([]);
+  const [loading, setLoading] = useState(true);
   const [selectedCategory, setSelectedCategory] = useState<string>('همه');
   const [searchQuery, setSearchQuery] = useState<string>('');
-  const [activeArticle, setActiveArticle] = useState<NewsItem | null>(
-    selectedNewsId ? NEWS_DATA.find((n) => n.id === selectedNewsId) || null : null
-  );
+  const [activeArticle, setActiveArticle] = useState<NewsItem | null>(null);
 
   useEffect(() => {
-    if (selectedNewsId) {
-      const match = NEWS_DATA.find((n) => n.id === selectedNewsId);
-      if (match) {
-        setActiveArticle(match);
-      }
-    } else {
+    loadNews();
+  }, []);
+
+  useEffect(() => {
+    if (selectedNewsId && newsList.length > 0) {
+      const match = newsList.find((n) => n.id === selectedNewsId);
+      if (match) setActiveArticle(match);
+    } else if (!selectedNewsId) {
       setActiveArticle(null);
     }
-  }, [selectedNewsId]);
+  }, [selectedNewsId, newsList]);
+
+  const loadNews = async () => {
+    setLoading(true);
+    try {
+      const res = await apiGet<{ data: NewsItem[] }>('news?per_page=50');
+      setNewsList(res.data || []);
+    } catch {
+      // silently fail — component shows empty state
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // New comment form state
   const [commentName, setCommentName] = useState('');
@@ -43,17 +57,35 @@ export default function NewsArchivePage({ fontSizeScale, onNavigate, selectedNew
   ]);
   const [commentSuccess, setCommentSuccess] = useState(false);
 
-  const categories = ['همه', 'مسکن', 'راه', 'شهرسازی', 'بازآفرینی', 'مناقصات', 'سازمانی'];
+  // Build categories dynamically from data
+  const allCategories = React.useMemo(() => {
+    const cats = new Set<string>();
+    newsList.forEach(n => { if (n.category_name) cats.add(n.category_name); });
+    return ['همه', ...Array.from(cats)];
+  }, [newsList]);
 
-  const filteredNews = NEWS_DATA.filter((item) => {
-    const matchesCategory = selectedCategory === 'همه' || item.category === selectedCategory;
+  const filteredNews = newsList.filter((item) => {
+    const matchesCategory = selectedCategory === 'همه' || item.category_name === selectedCategory;
     const matchesSearch =
       item.title.includes(searchQuery) ||
-      item.summary.includes(searchQuery) ||
-      item.content.includes(searchQuery) ||
+      (item.summary && item.summary.includes(searchQuery)) ||
+      (item.content && item.content.includes(searchQuery)) ||
       (item.tags && item.tags.some((t) => t.includes(searchQuery)));
     return matchesCategory && matchesSearch;
   });
+
+  const formatDate = (iso: string | null): string => {
+    if (!iso) return '-';
+    try {
+      return new Date(iso).toLocaleDateString('fa-IR', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+      });
+    } catch {
+      return '-';
+    }
+  };
 
   const handleAddComment = (e: React.FormEvent) => {
     e.preventDefault();
@@ -82,10 +114,10 @@ export default function NewsArchivePage({ fontSizeScale, onNavigate, selectedNew
           },
         },
         {
-          label: `دسته: ${activeArticle.category}`,
+          label: `دسته: ${activeArticle.category_name || 'عمومی'}`,
           onClick: () => {
             setActiveArticle(null);
-            setSelectedCategory(activeArticle.category);
+            if (activeArticle.category_name) setSelectedCategory(activeArticle.category_name);
           },
         },
         { label: activeArticle.title, active: true },
@@ -100,6 +132,19 @@ export default function NewsArchivePage({ fontSizeScale, onNavigate, selectedNew
         { label: 'صفحه اصلی', icon: 'fa-house', onClick: () => onNavigate('home') },
         { label: 'آرشیو جامع اخبار و اطلاعیه‌ها', active: true },
       ];
+
+  // Get category color
+  const getCategoryColor = (name: string | null): string => {
+    const colors: Record<string, string> = {
+      'راه': '#2A9D8F',
+      'مسکن': '#B76E4C',
+      'شهرسازی': '#1F3A5F',
+      'بازآفرینی': '#C98A5A',
+      'مناقصات': '#E76F51',
+      'سازمانی': '#264653',
+    };
+    return name && colors[name] ? colors[name] : '#B76E4C';
+  };
 
   return (
     <div className="min-h-screen bg-[#F5F6F8] pb-20 text-[#1F3A5F]" style={{ fontSize: `${16 * fontSizeScale}px` }}>
@@ -133,9 +178,9 @@ export default function NewsArchivePage({ fontSizeScale, onNavigate, selectedNew
 
                 <div className="flex items-center gap-3 text-xs text-gray-500 font-bold">
                   <span className="bg-[#2A9D8F]/15 text-[#2A9D8F] px-3 py-1 rounded-full font-black">
-                    کد خبر: {activeArticle.code || 'NEWS-1405'}
+                    کد خبر: NEWS-{activeArticle.id}
                   </span>
-                  <span><i className="fa-solid fa-[#2A9D8F] fa-eye ml-1"></i> {activeArticle.views} بازدید</span>
+                  <span><i className="fa-solid fa-eye text-[#2A9D8F] ml-1"></i> {activeArticle.views_count} بازدید</span>
                 </div>
               </div>
 
@@ -143,14 +188,16 @@ export default function NewsArchivePage({ fontSizeScale, onNavigate, selectedNew
               <div className="bg-white rounded-3xl p-6 sm:p-10 shadow-lg border border-gray-200/80 space-y-8">
                 {/* Article Header */}
                 <div className="space-y-4 border-b border-gray-100 pb-6">
-                  <div className="flex items-center gap-3 text-xs text-[#B76E4C] font-extrabold">
-                    <span className="px-3 py-1 bg-[#B76E4C]/10 rounded-lg">دسته‌بندی: {activeArticle.category}</span>
+                  <div className="flex items-center gap-3 text-xs text-[#B76E4C] font-extrabold flex-wrap">
+                    <span className="px-3 py-1 bg-[#B76E4C]/10 rounded-lg">
+                      دسته‌بندی: {activeArticle.category_name || 'عمومی'}
+                    </span>
                     <span>•</span>
-                    <span>تاریخ انتشار: {activeArticle.date}</span>
-                    {activeArticle.author && (
+                    <span>تاریخ انتشار: {formatDate(activeArticle.published_at || activeArticle.created_at)}</span>
+                    {activeArticle.author_name && (
                       <>
                         <span>•</span>
-                        <span>منبع: {activeArticle.author}</span>
+                        <span>منبع: {activeArticle.author_name}</span>
                       </>
                     )}
                   </div>
@@ -159,23 +206,27 @@ export default function NewsArchivePage({ fontSizeScale, onNavigate, selectedNew
                     {activeArticle.title}
                   </h2>
 
-                  <p className="text-sm sm:text-base text-gray-600 font-bold leading-relaxed bg-[#F5F6F8] p-4 rounded-2xl border-r-4 border-[#2A9D8F]">
-                    {activeArticle.summary}
-                  </p>
+                  {activeArticle.summary && (
+                    <p className="text-sm sm:text-base text-gray-600 font-bold leading-relaxed bg-[#F5F6F8] p-4 rounded-2xl border-r-4 border-[#2A9D8F]">
+                      {activeArticle.summary}
+                    </p>
+                  )}
                 </div>
 
                 {/* Main Hero Image */}
-                <div className="relative rounded-2xl overflow-hidden shadow-md max-h-[480px]">
-                  <img
-                    src={activeArticle.image}
-                    alt={activeArticle.title}
-                    referrerPolicy="no-referrer"
-                    className="w-full h-full object-cover"
-                  />
-                  <div className="absolute bottom-0 inset-x-0 p-4 bg-gradient-to-t from-black/80 to-transparent text-white text-xs font-semibold">
-                    تصویر مربوط به گزارش خبر - اداره کل راه و شهرسازی استان یزد
+                {activeArticle.image_url && (
+                  <div className="relative rounded-2xl overflow-hidden shadow-md max-h-[480px]">
+                    <img
+                      src={activeArticle.image_url}
+                      alt={activeArticle.title}
+                      referrerPolicy="no-referrer"
+                      className="w-full h-full object-cover"
+                    />
+                    <div className="absolute bottom-0 inset-x-0 p-4 bg-gradient-to-t from-black/80 to-transparent text-white text-xs font-semibold">
+                      تصویر مربوط به گزارش خبر - اداره کل راه و شهرسازی استان یزد
+                    </div>
                   </div>
-                </div>
+                )}
 
                 {/* Article Body Paragraphs */}
                 <div className="prose max-w-none text-gray-800 leading-loose text-sm sm:text-base font-semibold space-y-4">
@@ -185,48 +236,8 @@ export default function NewsArchivePage({ fontSizeScale, onNavigate, selectedNew
                   </p>
                 </div>
 
-                {/* Gallery if available */}
-                {activeArticle.gallery && activeArticle.gallery.length > 0 && (
-                  <div className="space-y-3 pt-4 border-t border-gray-100">
-                    <h4 className="text-sm font-black text-[#1F3A5F] flex items-center gap-2">
-                      <i className="fa-solid fa-images text-[#2A9D8F]"></i>
-                      <span>گالری تصاویر گزارش</span>
-                    </h4>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      {activeArticle.gallery.map((gImg, idx) => (
-                        <div key={idx} className="rounded-xl overflow-hidden border border-gray-200 shadow-sm h-48">
-                          <img src={gImg} alt="گالری خبر" className="w-full h-full object-cover hover:scale-105 transition-transform" />
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Attachments Section */}
-                {activeArticle.pdfAttachment && (
-                  <div className="bg-[#1F3A5F]/5 border border-[#1F3A5F]/20 p-5 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-4">
-                    <div className="flex items-center gap-3">
-                      <div className="w-12 h-12 bg-[#B76E4C] text-white rounded-xl flex items-center justify-center text-xl shadow-md">
-                        <i className="fa-solid fa-file-pdf"></i>
-                      </div>
-                      <div>
-                        <h5 className="font-extrabold text-sm text-[#1F3A5F]">پیوست رسمی اطلاعیه</h5>
-                        <p className="text-xs text-gray-500 font-bold">{activeArticle.pdfAttachment}</p>
-                      </div>
-                    </div>
-
-                    <button
-                      onClick={() => alert(`در حال دانلود فایل پیوست: ${activeArticle.pdfAttachment}`)}
-                      className="px-5 py-2.5 rounded-xl bg-[#2A9D8F] hover:bg-[#2A9D8F]/90 text-white font-bold text-xs flex items-center gap-2 shadow-md cursor-pointer"
-                    >
-                      <i className="fa-solid fa-download"></i>
-                      <span>دانلود فایل PDF</span>
-                    </button>
-                  </div>
-                )}
-
                 {/* Article Tags */}
-                {activeArticle.tags && (
+                {activeArticle.tags && activeArticle.tags.length > 0 && (
                   <div className="flex items-center gap-2 flex-wrap pt-4 border-t border-gray-100">
                     <span className="text-xs font-black text-gray-500">برچسب‌ها:</span>
                     {activeArticle.tags.map((tag, idx) => (
@@ -313,7 +324,7 @@ export default function NewsArchivePage({ fontSizeScale, onNavigate, selectedNew
                 <div className="flex flex-col md:flex-row gap-4 justify-between items-center">
                   {/* Category Tabs */}
                   <div className="flex items-center gap-2 overflow-x-auto w-full md:w-auto pb-2 md:pb-0 scrollbar-none">
-                    {categories.map((cat) => (
+                    {allCategories.map((cat) => (
                       <button
                         key={cat}
                         onClick={() => setSelectedCategory(cat)}
@@ -342,14 +353,22 @@ export default function NewsArchivePage({ fontSizeScale, onNavigate, selectedNew
                 </div>
               </div>
 
+              {/* Loading State */}
+              {loading && (
+                <div className="bg-white p-12 text-center rounded-3xl border border-gray-200 space-y-3">
+                  <div className="w-10 h-10 border-4 border-[#1F3A5F]/20 border-t-[#1F3A5F] rounded-full animate-spin mx-auto" />
+                  <p className="text-xs text-gray-500 font-semibold">در حال بارگذاری...</p>
+                </div>
+              )}
+
               {/* News Grid */}
-              {filteredNews.length === 0 ? (
+              {!loading && filteredNews.length === 0 ? (
                 <div className="bg-white p-12 text-center rounded-3xl border border-gray-200 space-y-3">
                   <i className="fa-solid fa-newspaper text-4xl text-gray-300"></i>
                   <h4 className="font-extrabold text-[#1F3A5F]">خبری یافت نشد</h4>
                   <p className="text-xs text-gray-500 font-semibold">عبارت دیگری را برای جستجو وارد کنید.</p>
                 </div>
-              ) : (
+              ) : !loading ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                   {filteredNews.map((news) => (
                     <motion.div
@@ -361,22 +380,34 @@ export default function NewsArchivePage({ fontSizeScale, onNavigate, selectedNew
                       <div>
                         {/* Image banner */}
                         <div className="relative h-48 overflow-hidden bg-gray-100">
-                          <img
-                            src={news.image}
-                            alt={news.title}
-                            referrerPolicy="no-referrer"
-                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                          />
-                          <span className="absolute top-3 right-3 bg-[#1F3A5F]/90 backdrop-blur-md text-white text-[10px] font-black px-3 py-1 rounded-full shadow-md">
-                            {news.category}
+                          {news.image_url ? (
+                            <img
+                              src={news.image_url}
+                              alt={news.title}
+                              referrerPolicy="no-referrer"
+                              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                            />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-[#1F3A5F]/10 to-[#B76E4C]/10">
+                              <i className="fa-solid fa-newspaper text-4xl text-gray-300"></i>
+                            </div>
+                          )}
+                          <span
+                            className="absolute top-3 right-3 text-white text-[10px] font-black px-3 py-1 rounded-full shadow-md"
+                            style={{ backgroundColor: getCategoryColor(news.category_name) }}
+                          >
+                            {news.category_name || 'عمومی'}
                           </span>
                         </div>
 
                         {/* Article Info */}
                         <div className="p-5 space-y-3">
                           <div className="flex items-center justify-between text-[11px] text-gray-400 font-bold">
-                            <span><i className="fa-regular fa-calendar ml-1 text-[#2A9D8F]"></i> {news.date}</span>
-                            <span><i className="fa-regular fa-eye ml-1"></i> {news.views}</span>
+                            <span>
+                              <i className="fa-regular fa-calendar ml-1 text-[#2A9D8F]"></i>
+                              {formatDate(news.published_at || news.created_at)}
+                            </span>
+                            <span><i className="fa-regular fa-eye ml-1"></i> {news.views_count}</span>
                           </div>
 
                           <h3 className="text-base font-extrabold text-[#1F3A5F] group-hover:text-[#B76E4C] transition-colors leading-snug">
@@ -384,7 +415,7 @@ export default function NewsArchivePage({ fontSizeScale, onNavigate, selectedNew
                           </h3>
 
                           <p className="text-xs text-gray-600 line-clamp-3 font-semibold leading-relaxed">
-                            {news.summary}
+                            {news.summary || news.content?.slice(0, 150) + '...'}
                           </p>
                         </div>
                       </div>
@@ -397,7 +428,7 @@ export default function NewsArchivePage({ fontSizeScale, onNavigate, selectedNew
                     </motion.div>
                   ))}
                 </div>
-              )}
+              ) : null}
             </motion.div>
           )}
         </AnimatePresence>
