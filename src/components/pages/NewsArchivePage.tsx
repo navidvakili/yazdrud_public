@@ -62,6 +62,7 @@ export default function NewsArchivePage({ fontSizeScale, onNavigate, selectedNew
       if (match) {
         setActiveArticle(match);
         fetchArticleDetail(match.id);
+        loadComments(match.id);
       }
     } else if (!selectedNewsId) {
       setActiveArticle(null);
