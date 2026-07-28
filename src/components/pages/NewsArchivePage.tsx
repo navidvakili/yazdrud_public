@@ -16,17 +16,42 @@ export default function NewsArchivePage({ fontSizeScale, onNavigate, selectedNew
   const [selectedCategory, setSelectedCategory] = useState<string>('همه');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [activeArticle, setActiveArticle] = useState<NewsItem | null>(null);
+  const [articleDetail, setArticleDetail] = useState<NewsItem | null>(null);
+  const [detailLoading, setDetailLoading] = useState(false);
 
   useEffect(() => {
     loadNews();
   }, []);
 
+  // Fetch full article detail (with content) when viewing a single article
+  const fetchArticleDetail = async (id: number) => {
+    setDetailLoading(true);
+    try {
+      const res = await apiGet<{ data: NewsItem }>(`news/${id}`);
+      setArticleDetail(res.data);
+    } catch {
+      // fallback: show what we have from list
+      setArticleDetail(null);
+    } finally {
+      setDetailLoading(false);
+    }
+  };
+
+  const handleSelectArticle = (news: NewsItem) => {
+    setActiveArticle(news);
+    fetchArticleDetail(news.id);
+  };
+
   useEffect(() => {
     if (selectedNewsId && newsList.length > 0) {
       const match = newsList.find((n) => n.id === selectedNewsId);
-      if (match) setActiveArticle(match);
+      if (match) {
+        setActiveArticle(match);
+        fetchArticleDetail(match.id);
+      }
     } else if (!selectedNewsId) {
       setActiveArticle(null);
+      setArticleDetail(null);
     }
   }, [selectedNewsId, newsList]);
 
@@ -110,6 +135,7 @@ export default function NewsArchivePage({ fontSizeScale, onNavigate, selectedNew
           label: 'اخبار و اطلاع‌رسانی',
           onClick: () => {
             setActiveArticle(null);
+            setArticleDetail(null);
             setSelectedCategory('همه');
           },
         },
@@ -117,6 +143,7 @@ export default function NewsArchivePage({ fontSizeScale, onNavigate, selectedNew
           label: `دسته: ${activeArticle.category_name || 'عمومی'}`,
           onClick: () => {
             setActiveArticle(null);
+            setArticleDetail(null);
             if (activeArticle.category_name) setSelectedCategory(activeArticle.category_name);
           },
         },
@@ -156,7 +183,7 @@ export default function NewsArchivePage({ fontSizeScale, onNavigate, selectedNew
               {/* Back to archive header */}
               <div className="flex justify-between items-center bg-white p-4 rounded-2xl shadow-sm border border-gray-200">
                 <button
-                  onClick={() => setActiveArticle(null)}
+                  onClick={() => { setActiveArticle(null); setArticleDetail(null); }}
                   className="px-4 py-2 rounded-xl bg-[#1F3A5F] hover:bg-[#1F3A5F]/90 text-white font-extrabold text-xs flex items-center gap-2 cursor-pointer transition-all"
                 >
                   <i className="fa-solid fa-arrow-right"></i>
@@ -210,17 +237,21 @@ export default function NewsArchivePage({ fontSizeScale, onNavigate, selectedNew
                       className="w-full h-full object-cover"
                     />
                     <div className="absolute bottom-0 inset-x-0 p-4 bg-gradient-to-t from-black/80 to-transparent text-white text-xs font-semibold">
-                      تصویر مربوط به گزارش خبر - اداره کل راه و شهرسازی استان یزد
+                      {activeArticle.title}
                     </div>
                   </div>
                 )}
 
-                {/* Article Body Paragraphs */}
+                {/* Article Body */}
                 <div className="prose max-w-none text-gray-800 leading-loose text-sm sm:text-base font-semibold space-y-4">
-                  <p>{activeArticle.content}</p>
-                  <p>
-                    این طرح در راستای چشم‌انداز توسعه متوازن استان یزد، ارتقای زیرساخت‌های حمل‌ونقل و تأمین مسکن شایسته برای خانواده‌های یزدی اجرا شده است. کلیه ناظران فنی و مسئولان ذی‌ربط بر نحوه اجرای استاندارد و مطابق ضوابط ملی ساختمان نظارت مستمر دارند.
-                  </p>
+                  {detailLoading ? (
+                    <div className="flex items-center justify-center gap-3 py-8">
+                      <div className="w-8 h-8 border-4 border-[#1F3A5F]/20 border-t-[#1F3A5F] rounded-full animate-spin" />
+                      <span className="text-sm text-gray-500 font-semibold">در حال دریافت متن خبر...</span>
+                    </div>
+                  ) : (
+                    <div dangerouslySetInnerHTML={{ __html: (articleDetail && articleDetail.content) || activeArticle.content || activeArticle.summary || '' }} />
+                  )}
                 </div>
 
                 {/* Article Tags */}
@@ -361,7 +392,7 @@ export default function NewsArchivePage({ fontSizeScale, onNavigate, selectedNew
                     <motion.div
                       key={news.id}
                       whileHover={{ y: -6 }}
-                      onClick={() => setActiveArticle(news)}
+                      onClick={() => handleSelectArticle(news)}
                       className="bg-white rounded-2xl overflow-hidden border border-gray-200 shadow-md hover:shadow-xl transition-all cursor-pointer flex flex-col justify-between group"
                     >
                       <div>
@@ -402,7 +433,7 @@ export default function NewsArchivePage({ fontSizeScale, onNavigate, selectedNew
                           </h3>
 
                           <p className="text-xs text-gray-600 line-clamp-3 font-semibold leading-relaxed">
-                            {news.summary || news.content?.slice(0, 150) + '...'}
+                            {news.summary || (news.content ? news.content.replace(/<[^>]*>/g, '').slice(0, 150) + '...' : '')}
                           </p>
                         </div>
                       </div>

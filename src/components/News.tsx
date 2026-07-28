@@ -191,7 +191,7 @@ export default function News({ fontSizeScale, onNavigate }: NewsProps) {
                   </h4>
 
                   <p className="text-xs text-gray-600 font-medium leading-relaxed line-clamp-3">
-                    {news.summary || news.content?.slice(0, 150) + '...'}
+                    {news.summary || (news.content ? news.content.replace(/<[^>]*>/g, '').slice(0, 150) + '...' : '')}
                   </p>
                 </div>
               </div>
