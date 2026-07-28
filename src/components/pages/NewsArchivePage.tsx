@@ -133,19 +133,6 @@ export default function NewsArchivePage({ fontSizeScale, onNavigate, selectedNew
         { label: 'آرشیو جامع اخبار و اطلاعیه‌ها', active: true },
       ];
 
-  // Get category color
-  const getCategoryColor = (name: string | null): string => {
-    const colors: Record<string, string> = {
-      'راه': '#2A9D8F',
-      'مسکن': '#B76E4C',
-      'شهرسازی': '#1F3A5F',
-      'بازآفرینی': '#C98A5A',
-      'مناقصات': '#E76F51',
-      'سازمانی': '#264653',
-    };
-    return name && colors[name] ? colors[name] : '#B76E4C';
-  };
-
   return (
     <div className="min-h-screen bg-[#F5F6F8] pb-20 text-[#1F3A5F]" style={{ fontSize: `${16 * fontSizeScale}px` }}>
       <Breadcrumb
@@ -394,7 +381,7 @@ export default function NewsArchivePage({ fontSizeScale, onNavigate, selectedNew
                           )}
                           <span
                             className="absolute top-3 right-3 text-white text-[10px] font-black px-3 py-1 rounded-full shadow-md"
-                            style={{ backgroundColor: getCategoryColor(news.category_name) }}
+                            style={{ backgroundColor: news.category_color || '#B76E4C' }}
                           >
                             {news.category_name || 'عمومی'}
                           </span>

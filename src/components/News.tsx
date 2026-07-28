@@ -62,19 +62,6 @@ export default function News({ fontSizeScale, onNavigate }: NewsProps) {
     return matchesCategory && matchesSearch;
   });
 
-  // Generate a deterministic color from category name
-  const getCategoryColor = (name: string | null): string => {
-    const colors: Record<string, string> = {
-      'راه': '#2A9D8F',
-      'مسکن': '#B76E4C',
-      'شهرسازی': '#1F3A5F',
-      'بازآفرینی': '#C98A5A',
-      'مناقصات': '#E76F51',
-      'سازمانی': '#264653',
-    };
-    return name && colors[name] ? colors[name] : '#B76E4C';
-  };
-
   return (
     <section
       id="news"
@@ -180,7 +167,7 @@ export default function News({ fontSizeScale, onNavigate }: NewsProps) {
                   )}
                   <span
                     className="absolute top-3 right-3 text-white text-[10px] font-bold px-2.5 py-1 rounded-full shadow"
-                    style={{ backgroundColor: getCategoryColor(news.category_name) }}
+                    style={{ backgroundColor: news.category_color || '#B76E4C' }}
                   >
                     {news.category_name || 'عمومی'}
                   </span>
