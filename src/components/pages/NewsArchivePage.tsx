@@ -296,7 +296,7 @@ export default function NewsArchivePage({ fontSizeScale, onNavigate, selectedNew
                 {/* Short Link — Copyable */}
                 <div className="border-t border-gray-100 pt-4">
                   <div className="flex items-center gap-2 text-xs text-gray-500 font-semibold">
-                    <span>🔗 Short link:</span>
+                    <span>🔗 لینک کوتاه:</span>
                     <code className="bg-gray-100 px-3 py-1.5 rounded-lg text-gray-700 font-mono text-xs dir-ltr">
                       yazdrud.ir/n/{activeArticle.id}
                     </code>

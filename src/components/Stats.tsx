@@ -77,7 +77,7 @@ export default function Stats({ fontSizeScale }: StatsProps) {
 
               <div>
                 {/* Big Animated Value */}
-                <div className="text-3xl sm:text-4xl lg:text-5xl font-black text-white font-mono tracking-tight mb-2">
+                <div className="text-3xl sm:text-4xl lg:text-5xl font-black text-white tracking-tight mb-2">
                   <span>{counts[index].toLocaleString('fa-IR')}</span>
                   <span className="text-[#E7D3B1] text-base sm:text-lg lg:text-xl ml-1">{stat.suffix}</span>
                 </div>
