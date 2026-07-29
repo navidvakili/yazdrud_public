@@ -1,9 +1,49 @@
-import { useState, useMemo } from 'react';
-import { COUNTIES_DATA } from '../data';
-import { CountyData } from '../types';
+import { useState, useMemo, useEffect, useCallback } from 'react';
+import { fetchCountyProjects } from '../api';
+import { CountyData, CountyProjectResponse } from '../types';
 
 interface MapProps {
   fontSizeScale: number;
+}
+
+/** SVG position & label data for each county (frontend-only, not from backend) */
+const COUNTY_META: Record<string, { x: number; y: number }> = {
+  yazd:     { x: 268, y: 212 },
+  meybod:   { x: 186, y: 191 },
+  ardakan:  { x: 265, y: 120 },
+  bafq:     { x: 393, y: 234 },
+  mehriz:   { x: 287, y: 270 },
+  taft:     { x: 195, y: 278 },
+  abarkuh:  { x: 153, y: 303 },
+  ashkezar: { x: 224, y: 194 },
+  behabad:  { x: 446, y: 208 },
+  khatam:   { x: 231, y: 401 },
+  zarch:    { x: 270, y: 189 },
+  marvast:  { x: 258, y: 463 },
+};
+
+/** Transform backend API response to the component's CountyData format */
+function transformApiData(apiData: CountyProjectResponse[]): CountyData[] {
+  return apiData
+    .filter((item) => item.is_active)
+    .map((item) => {
+      const meta = COUNTY_META[item.county_id];
+      return {
+        id: item.county_id,
+        name: item.county_name,
+        x: meta?.x ?? 0,
+        y: meta?.y ?? 0,
+        roadProjects: item.road_projects_count,
+        housingUnits: item.housing_units_count,
+        urbanPlans: item.urban_plans_count,
+        roadProgress: item.road_progress,
+        housingProgress: item.housing_progress,
+        urbanProgress: item.urban_progress,
+        hasActiveRoadProject: item.has_active_road_project,
+        hasHousingWorkshop: item.has_housing_workshop,
+        description: item.description || '',
+      };
+    });
 }
 
 // مسیرهای واقعی مرز شهرستان‌ها (استخراج‌شده از نقشه ویکی‌پدیا)
@@ -77,7 +117,44 @@ const COUNTY_FILLS: Record<string, { default: string; hover: string; selected: s
 
 export default function Map({ fontSizeScale }: MapProps) {
   const [hoveredCounty, setHoveredCounty] = useState<CountyData | null>(null);
-  const [selectedCounty, setSelectedCounty] = useState<CountyData | null>(COUNTIES_DATA[0]);
+  const [selectedCounty, setSelectedCounty] = useState<CountyData | null>(null);
+  const [countiesData, setCountiesData] = useState<CountyData[]>([]);
+  const [dataLoading, setDataLoading] = useState(true);
+  const [dataError, setDataError] = useState<string | null>(null);
+
+  // Fetch county projects from backend API
+  const loadData = useCallback(async () => {
+    setDataLoading(true);
+    setDataError(null);
+    try {
+      const response = await fetchCountyProjects<{ data: CountyProjectResponse[] }>();
+      const transformed = transformApiData(response.data);
+      setCountiesData(transformed);
+      // Set first county as default selection
+      if (transformed.length > 0 && !selectedCounty) {
+        setSelectedCounty(transformed[0]);
+      }
+    } catch (err: any) {
+      console.error('Failed to load county projects:', err);
+      setDataError('خطا در دریافت اطلاعات');
+    } finally {
+      setDataLoading(false);
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
+
+  // Re-select first county if data changes and selection is gone
+  useEffect(() => {
+    if (countiesData.length > 0) {
+      const stillExists = countiesData.find((c) => c.id === selectedCounty?.id);
+      if (!stillExists) {
+        setSelectedCounty(countiesData[0]);
+      }
+    }
+  }, [countiesData]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Label offset positions for each county (dx, dy from centroid)
   const labelOffsets: Record<string, { dx: number; dy: number }> = useMemo(() => ({
@@ -156,7 +233,7 @@ export default function Map({ fontSizeScale }: MapProps) {
                 ))}
 
                 {/* County Polygon Paths - Real Geographic Boundaries */}
-                {COUNTIES_DATA.map((county) => {
+                {countiesData.map((county) => {
                   const pathData = COUNTY_PATHS[county.id];
                   if (!pathData) return null;
 
@@ -189,7 +266,7 @@ export default function Map({ fontSizeScale }: MapProps) {
                 })}
 
                 {/* County Markers and Labels */}
-                {COUNTIES_DATA.map((county) => {
+                {countiesData.map((county) => {
                   const pathData = COUNTY_PATHS[county.id];
                   if (!pathData) return null;
 
@@ -207,8 +284,8 @@ export default function Map({ fontSizeScale }: MapProps) {
                       onMouseLeave={() => setHoveredCounty(null)}
                       onClick={() => setSelectedCounty(county)}
                     >
-                      {/* Pulse ring for high road activity */}
-                      {county.roadProjects > 20 && (
+                      {/* Pulse ring for active road project */}
+                      {county.hasActiveRoadProject && (
                         <circle
                           cx={cx}
                           cy={cy}
@@ -228,7 +305,7 @@ export default function Map({ fontSizeScale }: MapProps) {
                         <circle
                           cx={cx}
                           cy={cy}
-                          r={county.roadProjects > 20 ? (isSelected ? 4.5 : 3.5) : (isSelected ? 6 : isHovered ? 5 : 3.5)}
+                          r={county.hasActiveRoadProject ? (isSelected ? 4.5 : 3.5) : (isSelected ? 6 : isHovered ? 5 : 3.5)}
                           fill="#1F3A5F"
                           stroke="white"
                           strokeWidth={isSelected ? 1.5 : 1}
@@ -377,28 +454,34 @@ export default function Map({ fontSizeScale }: MapProps) {
                   <div className="space-y-1">
                     <div className="flex justify-between text-[10px] font-bold">
                       <span className="text-gray-300">راه‌سازی و بزرگراه</span>
-                      <span className="font-mono text-[#E7D3B1]">۸۲٪</span>
+                      <span className="font-mono text-[#E7D3B1]">
+                        {selectedCounty.roadProgress.toLocaleString('fa-IR')}٪
+                      </span>
                     </div>
                     <div className="w-full bg-white/15 h-1.5 rounded-full overflow-hidden">
-                      <div className="bg-[#B76E4C] h-full rounded-full transition-all duration-1000" style={{ width: '82%' }}></div>
+                      <div className="bg-[#B76E4C] h-full rounded-full transition-all duration-1000" style={{ width: `${selectedCounty.roadProgress}%` }}></div>
                     </div>
                   </div>
                   <div className="space-y-1">
                     <div className="flex justify-between text-[10px] font-bold">
                       <span className="text-gray-300">مسکن ملی</span>
-                      <span className="font-mono text-white">۶۵٪</span>
+                      <span className="font-mono text-white">
+                        {selectedCounty.housingProgress.toLocaleString('fa-IR')}٪
+                      </span>
                     </div>
                     <div className="w-full bg-white/15 h-1.5 rounded-full overflow-hidden">
-                      <div className="bg-[#2A9D8F] h-full rounded-full transition-all duration-1000" style={{ width: '65%' }}></div>
+                      <div className="bg-[#2A9D8F] h-full rounded-full transition-all duration-1000" style={{ width: `${selectedCounty.housingProgress}%` }}></div>
                     </div>
                   </div>
                   <div className="space-y-1">
                     <div className="flex justify-between text-[10px] font-bold">
                       <span className="text-gray-300">شهرسازی و طرح‌های تفصیلی</span>
-                      <span className="font-mono text-[#E7D3B1]">۷۰٪</span>
+                      <span className="font-mono text-[#E7D3B1]">
+                        {selectedCounty.urbanProgress.toLocaleString('fa-IR')}٪
+                      </span>
                     </div>
                     <div className="w-full bg-white/15 h-1.5 rounded-full overflow-hidden">
-                      <div className="bg-[#C98A5A] h-full rounded-full transition-all duration-1000" style={{ width: '70%' }}></div>
+                      <div className="bg-[#C98A5A] h-full rounded-full transition-all duration-1000" style={{ width: `${selectedCounty.urbanProgress}%` }}></div>
                     </div>
                   </div>
                 </div>
@@ -410,6 +493,16 @@ export default function Map({ fontSizeScale }: MapProps) {
                   <i className="fa-solid fa-file-shield group-hover:scale-110 transition-transform"></i>
                   <span>درخواست تخصیص اراضی در {selectedCounty.name}</span>
                 </button>
+              </div>
+            ) : dataLoading ? (
+              <div className="flex flex-col items-center justify-center text-center h-full text-gray-400 space-y-2 relative z-10">
+                <div className="w-8 h-8 border-2 border-gray-400 border-t-white rounded-full animate-spin"></div>
+                <p className="text-xs font-bold">در حال بارگذاری...</p>
+              </div>
+            ) : dataError ? (
+              <div className="flex flex-col items-center justify-center text-center h-full text-gray-400 space-y-2 relative z-10">
+                <i className="fa-solid fa-triangle-exclamation text-3xl text-red-400"></i>
+                <p className="text-xs font-bold">{dataError}</p>
               </div>
             ) : (
               <div className="flex flex-col items-center justify-center text-center h-full text-gray-400 space-y-2 relative z-10">

@@ -47,8 +47,29 @@ export interface CountyData {
   roadProjects: number;
   housingUnits: number;
   urbanPlans: number;
+  roadProgress: number;
+  housingProgress: number;
+  urbanProgress: number;
+  hasActiveRoadProject: boolean;
   hasHousingWorkshop?: boolean;
   description: string;
+}
+
+/** Response type from the backend county-projects API */
+export interface CountyProjectResponse {
+  id: number;
+  county_id: string;
+  county_name: string;
+  road_projects_count: number;
+  housing_units_count: number;
+  urban_plans_count: number;
+  road_progress: number;
+  housing_progress: number;
+  urban_progress: number;
+  has_active_road_project: boolean;
+  has_housing_workshop: boolean;
+  description: string | null;
+  is_active: boolean;
 }
 
 export interface InquiryResult {

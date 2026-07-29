@@ -46,3 +46,10 @@ export async function apiPost<T = any>(endpoint: string, data: Record<string, an
 
   return response.json();
 }
+
+/**
+ * دریافت اطلاعات شهرستان‌ها برای نقشه تعاملی از بک‌اند
+ */
+export async function fetchCountyProjects<T = any>(): Promise<T> {
+  return apiGet('county-projects');
+}
