@@ -80,6 +80,23 @@ export interface InquiryResult {
   date?: string;
 }
 
+/** Response type from the backend hero-slides API */
+export interface HeroSlide {
+  id: number;
+  tag: string;
+  title: string;
+  subtitle: string;
+  badge: string;
+  badge_icon: string;
+  bg_image: string | null;
+  primary_cta_text: string;
+  primary_cta_target: string;
+  secondary_cta_text: string;
+  secondary_cta_target: string;
+  sort_order: number;
+  is_active: boolean;
+}
+
 export interface LandApplicationForm {
   nationalCode: string;
   fullName: string;

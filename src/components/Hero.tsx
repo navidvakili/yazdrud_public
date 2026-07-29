@@ -1,75 +1,76 @@
 import React, { useState, useEffect, useRef } from 'react';
-import housingSlideImg from '../assets/images/yazd_housing_slide_1784826043247.jpg';
-import highwaySlideImg from '../assets/images/yazd_highway_slide_1784826054593.jpg';
-import citySlideImg from '../assets/images/yazd_city_regeneration_slide_1784826083474.jpg';
+import type { HeroSlide } from '../types';
+import { fetchHeroSlides } from '../api';
 
 interface HeroProps {
   onNavigate: (section: string) => void;
 }
 
+interface SlideData {
+  id: number;
+  tag: string;
+  title: string;
+  subtitle: string;
+  badge: string;
+  badgeIcon: string;
+  bgImage: string | null;
+  primaryCtaText: string;
+  primaryCtaTarget: string;
+  secondaryCtaText: string;
+  secondaryCtaTarget: string;
+}
+
+const FALLBACK_GRADIENTS = [
+  'bg-gradient-to-br from-[#0d1b2a] via-[#1b3a4b] to-[#1F3A5F]',
+  'bg-gradient-to-br from-[#1a1a2e] via-[#16213e] to-[#0f3443]',
+  'bg-gradient-to-br from-[#1b1b2f] via-[#1a3a4a] to-[#2a4a5a]',
+  'bg-gradient-to-br from-[#0d1b2a] via-[#152843] to-[#1a3a3a]',
+];
+
+function transformApiSlide(s: HeroSlide): SlideData {
+  return {
+    id: s.id,
+    tag: s.tag,
+    title: s.title,
+    subtitle: s.subtitle,
+    badge: s.badge,
+    badgeIcon: s.badge_icon,
+    bgImage: s.bg_image,
+    primaryCtaText: s.primary_cta_text,
+    primaryCtaTarget: s.primary_cta_target,
+    secondaryCtaText: s.secondary_cta_text,
+    secondaryCtaTarget: s.secondary_cta_target,
+  };
+}
+
 export default function Hero({ onNavigate }: HeroProps) {
+  const [slides, setSlides] = useState<SlideData[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [currentSlide, setCurrentSlide] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
   const touchStartXRef = useRef<number | null>(null);
 
-  const slides = [
-    {
-      id: 'housing',
-      tag: 'پروژه پیشران مسکن',
-      title: 'نهضت ملی مسکن و واگذاری اراضی یزد',
-      subtitle: 'واگذاری اراضی مسکونی و ساخت خانه‌های ویلایی و تک‌واحدی متناسب با زیست‌بوم و بادگیرهای اصیل یزد',
-      badge: '۱۴۰ پروژه مسکونی فعال',
-      badgeIcon: 'fa-house-chimney',
-      bgImage: housingSlideImg,
-      primaryCtaText: 'ورود به سامانه نهضت مسکن',
-      primaryCtaTarget: 'services',
-      secondaryCtaText: 'استعلام فوری وضعیت فرم ج',
-      secondaryCtaTarget: 'services',
-    },
-    {
-      id: 'transport',
-      tag: 'زیرساخت و ترانزیت',
-      title: 'توسعه بزرگراه‌ها و راه‌های شریانی استان',
-      subtitle: 'بهسازی، دوبانده‌سازی و ارتقای ایمنی بیش از ۸۵۰ کیلومتر از محورهای اصلی و کویری استان یزد',
-      badge: '۸۵۰ کیلومتر راه ترانزیتی',
-      badgeIcon: 'fa-road',
-      bgImage: highwaySlideImg,
-      primaryCtaText: 'نقشه پروژه‌های جاده‌ای یزد',
-      primaryCtaTarget: 'interactive-map',
-      secondaryCtaText: 'گزارش پروژه‌های راه‌سازی',
-      secondaryCtaTarget: 'news',
-    },
-    {
-      id: 'regeneration',
-      tag: 'شهرسازی و میراث جهانی',
-      title: 'بازآفرینی شهری و احیای بافت تاریخی یزد',
-      subtitle: 'حفظ و احیای هویت خشتی ثبت شده در یونسکو، بهسازی بافت فرسوده و بازآفرینی محلات کهن استان',
-      badge: '۳۲۰ پروژه عمران شهری',
-      badgeIcon: 'fa-city',
-      bgImage: citySlideImg,
-      primaryCtaText: 'طرح‌های بازآفرینی شهری',
-      primaryCtaTarget: 'services',
-      secondaryCtaText: 'مشاهده آخرین اخبار شهرسازی',
-      secondaryCtaTarget: 'news',
-    },
-    {
-      id: 'family',
-      tag: 'حمایت از خانواده و جمعیت',
-      title: 'طرح قانون حمایت از خانواده و جوانی جمعیت',
-      subtitle: 'تخصیص اراضی رایگان به خانوارهای دارای ۳ فرزند و بیشتر و جوانان متقاضی مسکن در کلیه شهرستان‌های یزد',
-      badge: '۱۲۰ خدمت آنلاین پورتال',
-      badgeIcon: 'fa-users',
-      bgImage: housingSlideImg,
-      primaryCtaText: 'ثبت‌نام طرح جوانی جمعیت',
-      primaryCtaTarget: 'services',
-      secondaryCtaText: 'میز خدمت هوشمند',
-      secondaryCtaTarget: 'services',
-    },
-  ];
+  useEffect(() => {
+    let cancelled = false;
+    fetchHeroSlides<{ data: HeroSlide[] }>()
+      .then(res => {
+        if (cancelled) return;
+        const mapped = (res.data || []).map(transformApiSlide);
+        setSlides(mapped);
+        setLoading(false);
+      })
+      .catch(err => {
+        if (cancelled) return;
+        setError(err.message || 'خطا در دریافت اسلایدها');
+        setLoading(false);
+      });
+    return () => { cancelled = true; };
+  }, []);
 
   // Auto advance slides every 6 seconds if not paused
   useEffect(() => {
-    if (isPaused) return;
+    if (isPaused || slides.length === 0) return;
     const timer = setInterval(() => {
       setCurrentSlide((prev) => (prev + 1) % slides.length);
     }, 6000);
@@ -78,12 +79,11 @@ export default function Hero({ onNavigate }: HeroProps) {
 
   // Keyboard navigation
   useEffect(() => {
+    if (slides.length === 0) return;
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'ArrowLeft') {
-        // Next slide in RTL
         setCurrentSlide((prev) => (prev + 1) % slides.length);
       } else if (e.key === 'ArrowRight') {
-        // Prev slide in RTL
         setCurrentSlide((prev) => (prev - 1 + slides.length) % slides.length);
       }
     };
@@ -116,6 +116,32 @@ export default function Hero({ onNavigate }: HeroProps) {
     touchStartXRef.current = null;
   };
 
+  // Loading state
+  if (loading) {
+    return (
+      <section id="hero" className="relative w-full h-screen min-h-[650px] flex items-center justify-center bg-[#0d1b2a] text-white pt-28 pb-12">
+        <div className="text-center">
+          <div className="w-10 h-10 border-4 border-teal-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-sm font-bold text-gray-400">در حال بارگذاری...</p>
+        </div>
+      </section>
+    );
+  }
+
+  // Error / Empty state
+  if (error || slides.length === 0) {
+    return (
+      <section id="hero" className="relative w-full h-screen min-h-[650px] flex items-center justify-center bg-[#0d1b2a] text-white pt-28 pb-12">
+        <div className="text-center px-4">
+          <i className="fa-solid fa-image text-4xl text-gray-600 mb-4"></i>
+          <p className="text-sm font-bold text-gray-400">
+            {error ? 'خطا در بارگذاری اسلایدها' : 'اسلایدی برای نمایش وجود ندارد'}
+          </p>
+        </div>
+      </section>
+    );
+  }
+
   const slide = slides[currentSlide];
 
   return (
@@ -139,12 +165,16 @@ export default function Hero({ onNavigate }: HeroProps) {
                 : 'opacity-0 scale-105 pointer-events-none z-0'
             }`}
           >
-            <img
-              src={item.bgImage}
-              alt={item.title}
-              referrerPolicy="no-referrer"
-              className="w-full h-full object-cover"
-            />
+            {item.bgImage ? (
+              <img
+                src={item.bgImage}
+                alt={item.title}
+                referrerPolicy="no-referrer"
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              <div className={`w-full h-full ${FALLBACK_GRADIENTS[index % FALLBACK_GRADIENTS.length]}`} />
+            )}
             {/* Multi-layered Glass Dark Gradients for high contrast without box cards */}
             <div className="absolute inset-0 bg-gradient-to-t from-[#0d1b2a] via-[#152843]/80 to-black/55"></div>
             <div className="absolute inset-0 bg-black/20"></div>

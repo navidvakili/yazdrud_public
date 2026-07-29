@@ -53,3 +53,10 @@ export async function apiPost<T = any>(endpoint: string, data: Record<string, an
 export async function fetchCountyProjects<T = any>(): Promise<T> {
   return apiGet('county-projects');
 }
+
+/**
+ * دریافت اسلایدهای صفحه اصلی از بک‌اند
+ */
+export async function fetchHeroSlides<T = any>(): Promise<T> {
+  return apiGet('hero-slides');
+}
