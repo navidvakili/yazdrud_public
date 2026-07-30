@@ -56,8 +56,10 @@ export interface RouteResult {
 }
 
 export function resolveRoute(path: string): RouteResult {
+  // دیکد کردن مسیر URL-encoded (مثلاً %D8%AE%D8%AF%D9%85%D8%A7%D8%AA → خدمات)
+  const decoded = decodeURIComponent(path);
   // حذف trailing slash (جز مسیر ریشه)
-  const normalized = path === '/' ? '/' : path.replace(/\/$/, '');
+  const normalized = decoded === '/' ? '/' : decoded.replace(/\/$/, '');
 
   // بررسی آدرس جزئیات خبر: /اخبار/{id}/{slug?}
   const newsMatch = normalized.match(/^\/اخبار\/(\d+)(?:\/(.+))?$/);
