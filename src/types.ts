@@ -119,7 +119,6 @@ export type InteractionActionType =
   | 'jumpSlide'
   | 'toggleAnimation'
   | 'playVideo'
-  | 'openModal'
   | 'changeStyle';
 
 export interface LayerInteraction {
@@ -127,6 +126,7 @@ export interface LayerInteraction {
   trigger: InteractionTrigger;
   action: InteractionActionType;
   targetUrl?: string;
+  openInNewTab?: boolean;
   targetSlideId?: string;
   targetLayerId?: string;
   customJs?: string;

@@ -223,7 +223,12 @@ export default function Hero({ onNavigate }: HeroProps) {
                   transition={{
                     duration: layer.animation.inDuration || 0.8,
                     delay: layer.animation.inDelay || 0,
-                    ease: layer.animation.inEasing === 'bounce' ? [0.68, -0.55, 0.265, 1.55] as const : 'easeOut',
+                    ease: layer.animation.inEasing === 'bounce' ? [0.68, -0.55, 0.265, 1.55] as const
+                      : layer.animation.inEasing === 'elastic' ? [0.68, -0.6, 0.32, 1.55] as const
+                      : layer.animation.inEasing === 'easeInOut' ? [0.42, 0, 0.58, 1] as const
+                      : layer.animation.inEasing === 'easeIn' ? [0.4, 0, 1, 1] as const
+                      : layer.animation.inEasing === 'linear' ? 'linear'
+                      : 'easeOut',
                   }}
                   whileHover={
                     layer.animation.hoverEffect === 'glow'
@@ -232,6 +237,8 @@ export default function Hero({ onNavigate }: HeroProps) {
                       ? { y: -8 }
                       : layer.animation.hoverEffect === 'tilt'
                       ? { rotate: 3, scale: 1.03 }
+                      : layer.animation.hoverEffect === 'scale'
+                      ? { scale: 1.08 }
                       : {}
                   }
                   onClick={() => {
@@ -243,7 +250,7 @@ export default function Hero({ onNavigate }: HeroProps) {
                           setKeyCounter((prev) => prev + 1);
                         }
                       } else if (int.action === 'link' && int.targetUrl) {
-                        window.open(int.targetUrl, '_blank');
+                        window.open(int.targetUrl, int.openInNewTab !== false ? '_blank' : '_self');
                       }
                     });
                   }}
@@ -383,6 +390,7 @@ export default function Hero({ onNavigate }: HeroProps) {
           </div>
         </div>
       )}
+
     </section>
   );
 }
