@@ -12,8 +12,6 @@ import LandAllocationPage from './components/pages/LandAllocationPage';
 import UrbanPlanningPage from './components/pages/UrbanPlanningPage';
 import RoadsTransportPage from './components/pages/RoadsTransportPage';
 import ServicesPage from './components/pages/ServicesPage';
-import DevelopmentTimeline from './components/DevelopmentTimeline';
-
 import { ActivePage } from './types';
 import {
   resolveRoute,
@@ -197,11 +195,6 @@ export default function App() {
             {/* Services / e-Services */}
             <div id="services">
               <Services fontSizeScale={fontSizeScale} onNavigate={handleNavigate} />
-            </div>
-
-            {/* Development Timeline */}
-            <div id="development-timeline">
-              <DevelopmentTimeline fontSizeScale={fontSizeScale} />
             </div>
 
             {/* Dynamic Organization Counter / Statistics */}

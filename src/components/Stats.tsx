@@ -1,49 +1,140 @@
 import { useEffect, useState } from 'react';
+import { apiGet } from '../api';
+
+interface TimelineItem {
+  id: number;
+  title: string;
+  icon: string | null;
+  value: string | null;
+  value_index: string | null;
+  sort_order: number;
+  is_active: boolean;
+}
+
+interface StatItem {
+  target: number;
+  label: string;
+  suffix: string;
+  icon: string;
+  color: string;
+}
+
+const ICONS_META: Record<string, { label: string; color: string }> = {
+  'fa-road':        { label: 'جاده',          color: '#B76E4C' },
+  'fa-city':        { label: 'شهر',           color: '#1F3A5F' },
+  'fa-building':    { label: 'ساختمان',       color: '#2A9D8F' },
+  'fa-home':        { label: 'مسکن',          color: '#C98A5A' },
+  'fa-train':       { label: 'قطار',          color: '#4A6FA5' },
+  'fa-bus':         { label: 'اتوبوس',        color: '#E76F51' },
+  'fa-car':         { label: 'خودرو',         color: '#6C757D' },
+  'fa-tree':        { label: 'فضای سبز',      color: '#2D936C' },
+  'fa-water':       { label: 'آب',            color: '#00B4D8' },
+  'fa-bolt':        { label: 'برق',           color: '#FFD166' },
+  'fa-cogs':        { label: 'تجهیزات',       color: '#6C5CE7' },
+  'fa-hard-hat':    { label: 'ساخت‌وساز',     color: '#F4A261' },
+  'fa-map-marked-alt': { label: 'نقشه',       color: '#264653' },
+  'fa-industry':    { label: 'صنعت',          color: '#A8DADC' },
+  'fa-hospital':    { label: 'بیمارستان',     color: '#E63946' },
+  'fa-school':      { label: 'مدرسه',         color: '#7B2D8E' },
+  'fa-university':  { label: 'دانشگاه',       color: '#3D5A80' },
+  'fa-bridge':      { label: 'پل',            color: '#8D6E63' },
+  'fa-rocket':      { label: 'پیشرفت',        color: '#E07A5F' },
+  'fa-flag':        { label: 'افتتاح',        color: '#D62828' },
+  'fa-user-graduate': { label: 'دانشجویان',    color: '#5B8DEF' },
+  'fa-briefcase':     { label: 'اشتغال',       color: '#E67E22' },
+  'fa-book-open':     { label: 'رشته تحصیلی',  color: '#8E44AD' },
+  'fa-handshake':     { label: 'شریک علمی',    color: '#1ABC9C' },
+  'fa-person-digging': { label: 'عمران',        color: '#B76E4C' },
+  'fa-desktop':        { label: 'فناوری',       color: '#6C5CE7' },
+};
+
+/** Normalize icon class for FontAwesome 6 compatibility */
+const normalizeIcon = (icon: string | null): string => {
+  if (!icon) return 'fa-solid fa-road';
+  if (icon.includes(' ')) return icon;
+  return `fa-solid ${icon}`;
+};
+
+/** Extract icon name from full class (e.g. "fa-solid fa-road" → "fa-road") */
+const iconNameOnly = (icon: string | null): string => {
+  if (!icon) return 'fa-road';
+  const parts = icon.trim().split(/\s+/);
+  return parts[parts.length - 1];
+};
 
 interface StatsProps {
   fontSizeScale: number;
 }
 
 export default function Stats({ fontSizeScale }: StatsProps) {
-  const statsConfig = [
-    { target: 320, label: 'پروژه عمرانی فعال', suffix: '+', icon: 'fa-solid fa-person-digging', color: '#B76E4C' },
-    { target: 850, label: 'کیلومتر راه توسعه‌یافته', suffix: ' کیلومتر', icon: 'fa-solid fa-road', color: '#2A9D8F' },
-    { target: 140, label: 'پروژه انبوه مسکن', suffix: '+', icon: 'fa-solid fa-city', color: '#1F3A5F' },
-    { target: 120, label: 'خدمت الکترونیکی برخط', suffix: ' خدمت', icon: 'fa-solid fa-desktop', color: '#C98A5A' },
-  ];
+  const [items, setItems] = useState<StatItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [counts, setCounts] = useState<number[]>([]);
 
-  // States to hold the current animated numbers
-  const [counts, setCounts] = useState([0, 0, 0, 0]);
-
+  // Fetch stats from the Development Timeline API
   useEffect(() => {
-    const duration = 1500; // Animation duration in ms
-    const frameRate = 30; // 30 frames per second
+    let cancelled = false;
+
+    async function fetchData() {
+      try {
+        const result = await apiGet<{ success: boolean; data: TimelineItem[] }>('development-timeline');
+        if (!cancelled && result.success && result.data.length > 0) {
+          const mapped: StatItem[] = result.data.map((item) => {
+            const iconName = iconNameOnly(item.icon);
+            const meta = ICONS_META[iconName] || { color: '#1F3A5F' };
+            return {
+              target: parseInt(item.value || '0', 10) || 0,
+              label: item.title,
+              suffix: item.value_index || '',
+              icon: normalizeIcon(item.icon),
+              color: meta.color,
+            };
+          });
+          setItems(mapped);
+        }
+      } catch (err) {
+        if (!cancelled) console.error('Error loading stats:', err);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+
+    fetchData();
+    return () => { cancelled = true; };
+  }, []);
+
+  // Animated counter
+  useEffect(() => {
+    if (items.length === 0) return;
+
+    const duration = 1500;
+    const frameRate = 30;
     const totalFrames = Math.round(duration / (1000 / frameRate));
-    
     let currentFrame = 0;
-    
+
+    setCounts(new Array(items.length).fill(0));
+
     const timer = setInterval(() => {
       currentFrame++;
       const progress = currentFrame / totalFrames;
-      
-      // Simple ease-out multiplier
-      const easeProgress = 1 - Math.pow(1 - progress, 3); 
+      const easeProgress = 1 - Math.pow(1 - progress, 3);
 
-      const currentCounts = statsConfig.map((stat) => {
+      const newCounts = items.map((stat) => {
         const value = Math.round(stat.target * easeProgress);
         return value > stat.target ? stat.target : value;
       });
-
-      setCounts(currentCounts);
+      setCounts(newCounts);
 
       if (currentFrame >= totalFrames) {
-        setCounts(statsConfig.map((stat) => stat.target));
+        setCounts(items.map((stat) => stat.target));
         clearInterval(timer);
       }
     }, 1000 / frameRate);
 
     return () => clearInterval(timer);
-  }, []);
+  }, [items]);
+
+  if (loading || items.length === 0) return null;
 
   return (
     <section
@@ -65,7 +156,7 @@ export default function Stats({ fontSizeScale }: StatsProps) {
 
         {/* Counter Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
-          {statsConfig.map((stat, index) => (
+          {items.map((stat, index) => (
             <div
               key={index}
               className="bg-white/10 backdrop-blur-md rounded-2xl p-6 border border-white/15 text-center flex flex-col justify-between hover:bg-white/20 hover:-translate-y-1 transition-all duration-300 shadow-sm"
@@ -78,13 +169,15 @@ export default function Stats({ fontSizeScale }: StatsProps) {
               <div>
                 {/* Big Animated Value */}
                 <div className="text-3xl sm:text-4xl lg:text-5xl font-black text-white tracking-tight mb-2">
-                  <span>{counts[index].toLocaleString('fa-IR')}</span>
-                  <span className="text-[#E7D3B1] text-base sm:text-lg lg:text-xl ml-1">{stat.suffix}</span>
+                  <span>{counts[index]?.toLocaleString('fa-IR') ?? 0}</span>
+                  {stat.suffix && (
+                    <span className="text-[#E7D3B1] text-base sm:text-lg lg:text-xl mr-1">{stat.suffix}</span>
+                  )}
                 </div>
-                
+
                 {/* Underline decorative */}
                 <div className="w-12 h-0.5 mx-auto bg-white/20 my-2.5"></div>
-                
+
                 <p className="text-xs sm:text-sm text-[#E7D3B1] font-bold">
                   {stat.label}
                 </p>
