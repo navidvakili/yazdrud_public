@@ -55,13 +55,6 @@ export async function fetchCountyProjects<T = any>(): Promise<T> {
 }
 
 /**
- * دریافت اسلایدهای صفحه اصلی از بک‌اند
- */
-export async function fetchHeroSlides<T = any>(): Promise<T> {
-  return apiGet('hero-slides');
-}
-
-/**
  * دریافت پروژه اسلایدر هوشمند (Slider Studio) برای نمایش عمومی
  */
 export async function fetchSliderStudioProject<T = any>(): Promise<T> {

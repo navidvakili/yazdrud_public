@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import type { HeroSlide } from '../types';
-import { fetchSliderStudioProject, fetchHeroSlides } from '../api';
+import { fetchSliderStudioProject } from '../api';
 
 interface HeroProps {
   onNavigate: (section: string) => void;
@@ -26,22 +25,6 @@ const FALLBACK_GRADIENTS = [
   'bg-gradient-to-br from-[#1b1b2f] via-[#1a3a4a] to-[#2a4a5a]',
   'bg-gradient-to-br from-[#0d1b2a] via-[#152843] to-[#1a3a3a]',
 ];
-
-function transformApiSlide(s: HeroSlide): SlideData {
-  return {
-    id: s.id,
-    tag: s.tag,
-    title: s.title,
-    subtitle: s.subtitle,
-    badge: s.badge,
-    badgeIcon: s.badge_icon,
-    bgImage: s.bg_image,
-    primaryCtaText: s.primary_cta_text,
-    primaryCtaTarget: s.primary_cta_target,
-    secondaryCtaText: s.secondary_cta_text,
-    secondaryCtaTarget: s.secondary_cta_target,
-  };
-}
 
 /** Extract SlideData[] from a SliderStudio project response */
 function extractFromSliderProject(projectData: any): SlideData[] {
@@ -122,7 +105,6 @@ export default function Hero({ onNavigate }: HeroProps) {
 
     async function loadSlides() {
       try {
-        // 1. Try slider-studio API first
         const ssRes = await fetchSliderStudioProject<{ data: any }>();
         if (cancelled) return;
 
@@ -135,23 +117,10 @@ export default function Hero({ onNavigate }: HeroProps) {
           }
         }
 
-        // 2. Fallback to hero-slides API
-        const hsRes = await fetchHeroSlides<{ data: HeroSlide[] }>();
-        if (cancelled) return;
-        const mapped = (hsRes.data || []).map(transformApiSlide);
-        setSlides(mapped);
         setLoading(false);
       } catch (err: any) {
         if (cancelled) return;
-        // 3. Final fallback: try hero-slides
-        try {
-          const hsRes = await fetchHeroSlides<{ data: HeroSlide[] }>();
-          if (cancelled) return;
-          const mapped = (hsRes.data || []).map(transformApiSlide);
-          setSlides(mapped);
-        } catch {
-          setError(err.message || 'خطا در دریافت اسلایدها');
-        }
+        setError(err.message || 'خطا در دریافت اسلایدها');
         setLoading(false);
       }
     }
