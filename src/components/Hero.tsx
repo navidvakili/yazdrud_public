@@ -15,6 +15,7 @@ export default function Hero({ onNavigate }: HeroProps) {
   const [currentSlide, setCurrentSlide] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
   const [keyCounter, setKeyCounter] = useState(0);
+  const [mousePos, setMousePos] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
   const containerRef = useRef<HTMLDivElement | null>(null);
   const touchStartXRef = useRef<number | null>(null);
 
@@ -166,6 +167,15 @@ export default function Hero({ onNavigate }: HeroProps) {
             return variants[t] || variants.fade;
           })()}
           transition={{ duration: 0.6, ease: 'easeInOut' }}
+          onMouseMove={e => {
+            const rect = e.currentTarget.getBoundingClientRect();
+            const cx = rect.left + rect.width / 2;
+            const cy = rect.top + rect.height / 2;
+            setMousePos({
+              x: Math.max(-1, Math.min(1, (e.clientX - cx) / (rect.width / 2))),
+              y: Math.max(-1, Math.min(1, (e.clientY - cy) / (rect.height / 2))),
+            });
+          }}
           style={{
             width: '100%',
             height: '100%',
@@ -276,6 +286,15 @@ export default function Hero({ onNavigate }: HeroProps) {
                   }}
                   className=""
                 >
+                  {/* Parallax inner */}
+                  <div style={{
+                    width: '100%',
+                    height: '100%',
+                    ...(layer.animation.parallaxDepth ? {
+                      transform: `translate(${mousePos.x * (layer.animation.parallaxDepth / 100) * 40}px, ${mousePos.y * (layer.animation.parallaxDepth / 100) * 40}px)`,
+                      transition: 'transform 0.15s ease-out',
+                    } : {}),
+                  }}>
                   {/* Layer Background */}
                   {(layer.backgroundColor !== 'transparent' || layer.backgroundGradient) && (
                     <div
@@ -327,6 +346,7 @@ export default function Hero({ onNavigate }: HeroProps) {
                       </div>
                     )}
                   </div>
+                  </div>{/* end parallax */}
                 </motion.div>
               );
             })}
