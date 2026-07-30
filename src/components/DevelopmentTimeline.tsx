@@ -42,6 +42,12 @@ const ICONS_META: Record<string, { label: string; color: string }> = {
   'fa-bridge':      { label: 'پل',            color: '#8D6E63' },
   'fa-rocket':      { label: 'پیشرفت',        color: '#E07A5F' },
   'fa-flag':        { label: 'افتتاح',        color: '#D62828' },
+  'fa-user-graduate': { label: 'دانشجویان',    color: '#5B8DEF' },
+  'fa-briefcase':     { label: 'اشتغال',       color: '#E67E22' },
+  'fa-book-open':     { label: 'رشته تحصیلی',  color: '#8E44AD' },
+  'fa-handshake':     { label: 'شریک علمی',    color: '#1ABC9C' },
+  'fa-person-digging': { label: 'عمران',        color: '#B76E4C' },
+  'fa-desktop':        { label: 'فناوری',       color: '#6C5CE7' },
 };
 
 /** Normalize icon class for FontAwesome 6 compatibility */
