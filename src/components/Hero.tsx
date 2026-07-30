@@ -391,6 +391,7 @@ export default function Hero({ onNavigate }: HeroProps) {
               const getInitial = () => {
                 const base = { rotate: layer.rotation };
                 switch (layer.animation.inPreset) {
+                  case 'none':      return { ...base, opacity: layer.opacity };
                   case 'fadeIn':    return { ...base, opacity: 0 };
                   case 'slideUp':   return { ...base, opacity: 0, y: layerY + 60 };
                   case 'slideDown': return { ...base, opacity: 0, y: layerY - 60 };
@@ -416,9 +417,9 @@ export default function Hero({ onNavigate }: HeroProps) {
                   initial={getInitial()}
                   animate={{ opacity: layer.opacity, x: 0, y: 0, scale: 1, rotate: layer.rotation }}
                   transition={{
-                    duration: layer.animation.inDuration || 0.8,
-                    delay: layer.animation.inDelay || 0,
-                    ease: layer.animation.inEasing === 'bounce' ? [0.68, -0.55, 0.265, 1.55] as const
+                    duration: layer.animation.inPreset === 'none' ? 0 : (layer.animation.inDuration || 0.8),
+                    delay: layer.animation.inPreset === 'none' ? 0 : (layer.animation.inDelay || 0),
+                    ease: layer.animation.inPreset === 'none' ? 'linear'
                       : layer.animation.inEasing === 'elastic' ? [0.68, -0.6, 0.32, 1.55] as const
                       : layer.animation.inEasing === 'easeInOut' ? [0.42, 0, 0.58, 1] as const
                       : layer.animation.inEasing === 'easeIn' ? [0.4, 0, 1, 1] as const
