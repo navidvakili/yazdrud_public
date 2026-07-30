@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { apiGet } from '../api';
+import { API } from '../shared-utils';
 import { NewsItem } from '../types';
 
 interface NewsProps {
@@ -22,7 +22,7 @@ export default function News({ fontSizeScale, onNavigate }: NewsProps) {
     setLoading(true);
     setError(null);
     try {
-      const res = await apiGet<{ data: NewsItem[] }>('news?per_page=20');
+      const res = await API<{ data: NewsItem[] }>('news?per_page=20');
       setNewsList(res.data || []);
     } catch (err: any) {
       setError(err.message || 'خطا در بارگذاری اخبار');

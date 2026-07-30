@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { apiGet, apiPost } from '../../api';
+import { API } from '../../shared-utils';
 import { NewsItem, NewsComment, ActivePage } from '../../types';
 import Breadcrumb from '../Breadcrumb';
 
@@ -27,7 +27,7 @@ export default function NewsArchivePage({ fontSizeScale, onNavigate, selectedNew
   const fetchArticleDetail = async (id: number) => {
     setDetailLoading(true);
     try {
-      const res = await apiGet<{ data: NewsItem }>(`news/${id}`);
+      const res = await API<{ data: NewsItem }>(`news/${id}`);
       setArticleDetail(res.data);
       // Update active article with fresh comments count from detail
       if (res.data.comments_count !== undefined) {
@@ -45,7 +45,7 @@ export default function NewsArchivePage({ fontSizeScale, onNavigate, selectedNew
   const loadComments = async (newsId: number) => {
     setCommentsLoading(true);
     try {
-      const res = await apiGet<{ data: NewsComment[] }>(`news/${newsId}/comments`);
+      const res = await API<{ data: NewsComment[] }>(`news/${newsId}/comments`);
       setCommentsList(res.data || []);
     } catch {
       setCommentsList([]);
@@ -90,7 +90,7 @@ export default function NewsArchivePage({ fontSizeScale, onNavigate, selectedNew
   const loadNews = async () => {
     setLoading(true);
     try {
-      const res = await apiGet<{ data: NewsItem[] }>('news?per_page=50');
+      const res = await API<{ data: NewsItem[] }>('news?per_page=50');
       setNewsList(res.data || []);
     } catch {
       // silently fail — component shows empty state
@@ -142,10 +142,10 @@ export default function NewsArchivePage({ fontSizeScale, onNavigate, selectedNew
     if (!commentName.trim() || !commentText.trim() || !activeArticle) return;
     setCommentSubmitting(true);
     try {
-      const res = await apiPost<{ message: string; data: NewsComment }>(`news/${activeArticle.id}/comments`, {
+      const res = await API<{ message: string; data: NewsComment }>(`news/${activeArticle.id}/comments`, {
         author_name: commentName,
         content: commentText,
-      });
+      }, 'POST');
       setCommentName('');
       setCommentText('');
       setCommentSuccess(true);

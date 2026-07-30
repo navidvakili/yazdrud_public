@@ -5,7 +5,7 @@
 // ============================================================
 
 import { useEffect, useState, useRef } from 'react';
-import { apiGet } from '../api';
+import { API } from '../shared-utils';
 
 interface TimelineItem {
   id: number;
@@ -75,7 +75,7 @@ export default function DevelopmentTimeline({ fontSizeScale }: DevelopmentTimeli
 
     async function fetchData() {
       try {
-        const result = await apiGet<{ success: boolean; data: TimelineItem[] }>('development-timeline');
+        const result = await API<{ success: boolean; data: TimelineItem[] }>('development-timeline');
         if (!cancelled && result.success) {
           setItems(result.data);
         }

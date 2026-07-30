@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { apiGet } from '../api';
+import { API } from '../shared-utils';
 
 interface TimelineItem {
   id: number;
@@ -77,7 +77,7 @@ export default function Stats({ fontSizeScale }: StatsProps) {
 
     async function fetchData() {
       try {
-        const result = await apiGet<{ success: boolean; data: TimelineItem[] }>('development-timeline');
+        const result = await API<{ success: boolean; data: TimelineItem[] }>('development-timeline');
         if (!cancelled && result.success && result.data.length > 0) {
           const mapped: StatItem[] = result.data.map((item) => {
             const iconName = iconNameOnly(item.icon);
