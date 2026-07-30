@@ -7,6 +7,11 @@ export interface NewsComment {
   created_at: string;
 }
 
+export interface PhotoReportImage {
+  url: string;
+  title?: string | null;
+}
+
 export interface NewsItem {
   id: number;
   title: string;
@@ -22,6 +27,8 @@ export interface NewsItem {
   likes_count: number;
   is_pinned: boolean;
   comments_enabled: boolean;
+  is_photo_report: boolean;
+  photo_report_images: PhotoReportImage[];
   comments_count: number;
   comments?: NewsComment[];
   status: 'published' | 'draft' | 'archived';

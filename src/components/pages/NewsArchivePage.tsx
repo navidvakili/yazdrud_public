@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { API, decodeHtmlEntities, decodeAndStripHtml } from '../../shared-utils';
-import { NewsItem, NewsComment, ActivePage } from '../../types';
+import { NewsItem, NewsComment, ActivePage, PhotoReportImage } from '../../types';
 import Breadcrumb from '../Breadcrumb';
 
 interface NewsArchivePageProps {
@@ -18,6 +18,7 @@ export default function NewsArchivePage({ fontSizeScale, onNavigate, selectedNew
   const [activeArticle, setActiveArticle] = useState<NewsItem | null>(null);
   const [articleDetail, setArticleDetail] = useState<NewsItem | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
+  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
   const [lastPage, setLastPage] = useState(1);
@@ -158,6 +159,28 @@ export default function NewsArchivePage({ fontSizeScale, onNavigate, selectedNew
     prevFilteredLen.current = filteredNews.length;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filteredNews.length, perPage]);
+
+  // Keyboard navigation for photo report lightbox
+  useEffect(() => {
+    if (lightboxIndex === null) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setLightboxIndex(null);
+      } else if (e.key === 'ArrowLeft') {
+        setLightboxIndex(prev => {
+          const images = (articleDetail?.photo_report_images ?? activeArticle?.photo_report_images ?? []) as PhotoReportImage[];
+          return prev !== null && prev < images.length - 1 ? prev + 1 : prev;
+        });
+      } else if (e.key === 'ArrowRight') {
+        setLightboxIndex(prev => {
+          const images = (articleDetail?.photo_report_images ?? activeArticle?.photo_report_images ?? []) as PhotoReportImage[];
+          return prev !== null && prev > 0 ? prev - 1 : prev;
+        });
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [lightboxIndex, articleDetail, activeArticle]);
 
   const formatDate = (iso: string | null): string => {
     if (!iso) return '-';
@@ -315,6 +338,48 @@ export default function NewsArchivePage({ fontSizeScale, onNavigate, selectedNew
                       {activeArticle.title}
                     </div>
                   </div>
+                )}
+
+                {/* Photo Report Gallery */}
+                {(activeArticle.is_photo_report || (articleDetail?.is_photo_report)) && (
+                  (() => {
+                    const galleryImages = (articleDetail?.photo_report_images ?? activeArticle.photo_report_images ?? []) as PhotoReportImage[];
+                    if (galleryImages.length === 0) return null;
+                    return (
+                      <div className="space-y-3">
+                        <div className="flex items-center gap-2 text-[#1F3A5F]">
+                          <i className="fa-solid fa-images text-indigo-500"></i>
+                          <span className="text-sm font-black">گزارش تصویری</span>
+                          <span className="text-xs text-gray-400 font-mono">({galleryImages.length} تصویر)</span>
+                        </div>
+                        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                          {galleryImages.map((img, idx) => (
+                            <div
+                              key={idx}
+                              onClick={() => setLightboxIndex(idx)}
+                              className="relative aspect-[4/3] rounded-xl overflow-hidden shadow-md border border-gray-100 group cursor-pointer"
+                            >
+                              <img
+                                src={img.url}
+                                alt={img.title || ''}
+                                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                                referrerPolicy="no-referrer"
+                                loading="lazy"
+                              />
+                              <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                <i className="fa-solid fa-search-plus text-white text-xl"></i>
+                              </div>
+                              {img.title && (
+                                <div className="absolute bottom-0 inset-x-0 p-2 bg-gradient-to-t from-black/70 to-transparent">
+                                  <p className="text-[10px] text-white font-semibold line-clamp-1">{img.title}</p>
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })()
                 )}
 
                 {/* Article Body */}
@@ -544,6 +609,12 @@ export default function NewsArchivePage({ fontSizeScale, onNavigate, selectedNew
                           >
                             {news.category_name || 'عمومی'}
                           </span>
+                          {news.is_photo_report && (
+                            <span className="absolute bottom-3 left-3 bg-indigo-600/90 text-white text-[10px] font-bold px-2.5 py-1 rounded-full shadow flex items-center gap-1 backdrop-blur-sm">
+                              <i className="fa-solid fa-images"></i>
+                              <span>گزارش تصویری</span>
+                            </span>
+                          )}
                         </div>
 
                         {/* Article Info */}
@@ -627,6 +698,66 @@ export default function NewsArchivePage({ fontSizeScale, onNavigate, selectedNew
           )}
         </AnimatePresence>
       </div>
+
+      {/* Lightbox Modal for Photo Report Gallery */}
+      {lightboxIndex !== null && (() => {
+        const galleryImages = (articleDetail?.photo_report_images ?? activeArticle?.photo_report_images ?? []) as PhotoReportImage[];
+        const current = galleryImages[lightboxIndex];
+        if (!current) return null;
+        return (
+          <div
+            className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4 md:p-8"
+            onClick={() => setLightboxIndex(null)}
+          >
+            {/* Close button */}
+            <button
+              onClick={() => setLightboxIndex(null)}
+              className="absolute top-4 left-4 text-white/80 hover:text-white text-2xl transition-colors z-10 cursor-pointer"
+            >
+              <i className="fa-solid fa-xmark"></i>
+            </button>
+
+            {/* Image counter */}
+            <div className="absolute top-4 right-4 text-white/60 text-xs font-mono bg-black/40 px-3 py-1.5 rounded-full">
+              {lightboxIndex + 1} / {galleryImages.length}
+            </div>
+
+            {/* Previous */}
+            {lightboxIndex > 0 && (
+              <button
+                onClick={(e) => { e.stopPropagation(); setLightboxIndex(lightboxIndex - 1); }}
+                className="absolute right-4 top-1/2 -translate-y-1/2 text-white/60 hover:text-white text-3xl transition-colors z-10 cursor-pointer"
+              >
+                <i className="fa-solid fa-chevron-right"></i>
+              </button>
+            )}
+
+            {/* Image */}
+            <div className="max-w-full max-h-full flex flex-col items-center" onClick={(e) => e.stopPropagation()}>
+              <img
+                src={current.url}
+                alt={current.title || ''}
+                className="max-w-full max-h-[85vh] object-contain rounded-2xl shadow-2xl"
+              />
+              {current.title && (
+                <p className="mt-4 text-white/80 text-sm font-semibold text-center max-w-lg">
+                  {current.title}
+                </p>
+              )}
+            </div>
+
+            {/* Next */}
+            {lightboxIndex < galleryImages.length - 1 && (
+              <button
+                onClick={(e) => { e.stopPropagation(); setLightboxIndex(lightboxIndex + 1); }}
+                className="absolute left-4 top-1/2 -translate-y-1/2 text-white/60 hover:text-white text-3xl transition-colors z-10 cursor-pointer"
+              >
+                <i className="fa-solid fa-chevron-left"></i>
+              </button>
+            )}
+          </div>
+        );
+      })()}
     </div>
   );
 }

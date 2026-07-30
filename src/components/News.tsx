@@ -171,6 +171,12 @@ export default function News({ fontSizeScale, onNavigate }: NewsProps) {
                   <i className="fa-solid fa-star"></i>
                   <span>خبر ویژه</span>
                 </span>
+                {filteredNews[0].is_photo_report && (
+                  <span className="absolute bottom-3 left-3 bg-indigo-600/90 text-white text-[10px] font-bold px-3 py-1 rounded-full shadow flex items-center gap-1 backdrop-blur-sm">
+                    <i className="fa-solid fa-images"></i>
+                    <span>گزارش تصویری</span>
+                  </span>
+                )}
               </div>
 
               {/* Featured Content */}
@@ -233,6 +239,12 @@ export default function News({ fontSizeScale, onNavigate }: NewsProps) {
                     >
                       {news.category_name || 'عمومی'}
                     </span>
+                    {news.is_photo_report && (
+                      <span className="absolute bottom-3 left-3 bg-indigo-600/90 text-white text-[10px] font-bold px-2.5 py-1 rounded-full shadow flex items-center gap-1 backdrop-blur-sm">
+                        <i className="fa-solid fa-images"></i>
+                        <span>گزارش تصویری</span>
+                      </span>
+                    )}
                   </div>
 
                   {/* Body */}
