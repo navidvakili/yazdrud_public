@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import type { HeroSlide } from '../types';
-import { fetchHeroSlides } from '../api';
+import { fetchSliderStudioProject, fetchHeroSlides } from '../api';
 
 interface HeroProps {
   onNavigate: (section: string) => void;
@@ -43,6 +43,72 @@ function transformApiSlide(s: HeroSlide): SlideData {
   };
 }
 
+/** Extract SlideData[] from a SliderStudio project response */
+function extractFromSliderProject(projectData: any): SlideData[] {
+  if (!projectData?.slides || !Array.isArray(projectData.slides)) {
+    return [];
+  }
+
+  return projectData.slides.map((slide: any, idx: number) => {
+    const layers = slide.layers || [];
+
+    // Sort layers by zIndex
+    const sorted = [...layers].sort((a: any, b: any) => (a.zIndex || 0) - (b.zIndex || 0));
+
+    // Extract text layers by font size heuristic
+    const textLayers = sorted.filter((l: any) => l.type === 'text');
+    const buttonLayers = sorted.filter((l: any) => l.type === 'button');
+
+    // Find badge/tag layer (small font, often rounded bg)
+    const badgeLayer = textLayers.find((l: any) =>
+      (l.fontSize || 0) <= 16 && l.backgroundColor && l.backgroundColor !== 'transparent'
+    );
+    // Find title (largest font)
+    const titleLayer = textLayers.find((l: any) => (l.fontSize || 0) >= 36);
+    // Find subtitle (medium font)
+    const subtitleLayer = textLayers.find((l: any) =>
+      (l.fontSize || 0) >= 18 && (l.fontSize || 0) < 36
+    );
+    // Find badge stat layer
+    const statLayer = textLayers.find((l: any) =>
+      l.content?.includes('📊') || (l.fontSize || 0) <= 16 && l !== badgeLayer
+    );
+
+    // Button layers
+    const primaryBtn = buttonLayers[0];
+    const secondaryBtn = buttonLayers[1];
+
+    // Extract tag text from badge layer (remove icon prefixes)
+    const badgeContent = badgeLayer?.content || '';
+    const tagMatch = typeof badgeContent === 'string' ? badgeContent.replace(/<[^>]*>/g, '').trim() : '';
+    // Try to extract icon name
+    let badgeIcon = 'fa-solid fa-newspaper';
+    const iconMatch = typeof badgeContent === 'string' ? badgeContent.match(/fa-[a-z-]+/g) : null;
+    if (iconMatch) {
+      badgeIcon = 'fa-solid ' + iconMatch[0];
+    }
+    // Tag is the text after the icon
+    const tagText = badgeLayer ? tagMatch.replace(/fa-[a-z-]+/g, '').trim() : '';
+
+    // Get background
+    const bg = slide.background || {};
+
+    return {
+      id: typeof slide.id === 'string' ? parseInt(slide.id, 10) || idx + 1 : slide.id || idx + 1,
+      tag: tagText || badgeContent || '',
+      title: titleLayer?.content || slide.title || '',
+      subtitle: subtitleLayer?.content || '',
+      badge: statLayer?.content?.replace('📊', '').trim() || '',
+      badgeIcon: badgeIcon,
+      bgImage: bg.imageUrl || null,
+      primaryCtaText: primaryBtn?.content || '',
+      primaryCtaTarget: primaryBtn?.interactions?.[0]?.targetUrl || '#services',
+      secondaryCtaText: secondaryBtn?.content || '',
+      secondaryCtaTarget: secondaryBtn?.interactions?.[0]?.targetUrl || '#services',
+    };
+  });
+}
+
 export default function Hero({ onNavigate }: HeroProps) {
   const [slides, setSlides] = useState<SlideData[]>([]);
   const [loading, setLoading] = useState(true);
@@ -53,18 +119,44 @@ export default function Hero({ onNavigate }: HeroProps) {
 
   useEffect(() => {
     let cancelled = false;
-    fetchHeroSlides<{ data: HeroSlide[] }>()
-      .then(res => {
+
+    async function loadSlides() {
+      try {
+        // 1. Try slider-studio API first
+        const ssRes = await fetchSliderStudioProject<{ data: any }>();
         if (cancelled) return;
-        const mapped = (res.data || []).map(transformApiSlide);
+
+        if (ssRes?.data?.slides) {
+          const mapped = extractFromSliderProject(ssRes.data);
+          if (mapped.length > 0) {
+            setSlides(mapped);
+            setLoading(false);
+            return;
+          }
+        }
+
+        // 2. Fallback to hero-slides API
+        const hsRes = await fetchHeroSlides<{ data: HeroSlide[] }>();
+        if (cancelled) return;
+        const mapped = (hsRes.data || []).map(transformApiSlide);
         setSlides(mapped);
         setLoading(false);
-      })
-      .catch(err => {
+      } catch (err: any) {
         if (cancelled) return;
-        setError(err.message || 'خطا در دریافت اسلایدها');
+        // 3. Final fallback: try hero-slides
+        try {
+          const hsRes = await fetchHeroSlides<{ data: HeroSlide[] }>();
+          if (cancelled) return;
+          const mapped = (hsRes.data || []).map(transformApiSlide);
+          setSlides(mapped);
+        } catch {
+          setError(err.message || 'خطا در دریافت اسلایدها');
+        }
         setLoading(false);
-      });
+      }
+    }
+
+    loadSlides();
     return () => { cancelled = true; };
   }, []);
 

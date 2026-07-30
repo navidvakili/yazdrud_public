@@ -60,3 +60,10 @@ export async function fetchCountyProjects<T = any>(): Promise<T> {
 export async function fetchHeroSlides<T = any>(): Promise<T> {
   return apiGet('hero-slides');
 }
+
+/**
+ * دریافت پروژه اسلایدر هوشمند (Slider Studio) برای نمایش عمومی
+ */
+export async function fetchSliderStudioProject<T = any>(): Promise<T> {
+  return apiGet('slider-studio/public');
+}
