@@ -1,6 +1,8 @@
 export {
   API,
   getBrowserFingerprint,
+  decodeHtmlEntities,
+  decodeAndStripHtml,
 } from './functions';
 export {
   toPersianDigits,

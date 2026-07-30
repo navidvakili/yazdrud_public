@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { API } from '../../shared-utils';
+import { API, decodeHtmlEntities, decodeAndStripHtml } from '../../shared-utils';
 import { NewsItem, NewsComment, ActivePage } from '../../types';
 import Breadcrumb from '../Breadcrumb';
 
@@ -18,6 +18,11 @@ export default function NewsArchivePage({ fontSizeScale, onNavigate, selectedNew
   const [activeArticle, setActiveArticle] = useState<NewsItem | null>(null);
   const [articleDetail, setArticleDetail] = useState<NewsItem | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [lastPage, setLastPage] = useState(1);
+  const [totalNews, setTotalNews] = useState(0);
+  const perPage = 12;
 
   useEffect(() => {
     loadNews();
@@ -55,6 +60,9 @@ export default function NewsArchivePage({ fontSizeScale, onNavigate, selectedNew
   };
 
   const handleSelectArticle = (news: NewsItem) => {
+    // Scroll to top when opening article detail
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+
     setActiveArticle(news);
     fetchArticleDetail(news.id);
     loadComments(news.id);
@@ -90,8 +98,12 @@ export default function NewsArchivePage({ fontSizeScale, onNavigate, selectedNew
   const loadNews = async () => {
     setLoading(true);
     try {
-      const res = await API<{ data: NewsItem[] }>('news?per_page=50');
+      // Fetch enough items for meaningful client-side pagination
+      const res = await API<{ data: NewsItem[]; total: number }>('news?per_page=500&page=1');
       setNewsList(res.data || []);
+      setTotalNews(res.total ?? 0);
+      setCurrentPage(1);
+      setLastPage(Math.ceil((res.data?.length || 0) / perPage));
     } catch {
       // silently fail — component shows empty state
     } finally {
@@ -114,15 +126,38 @@ export default function NewsArchivePage({ fontSizeScale, onNavigate, selectedNew
     return ['همه', ...Array.from(cats)];
   }, [newsList]);
 
-  const filteredNews = newsList.filter((item) => {
-    const matchesCategory = selectedCategory === 'همه' || item.category_name === selectedCategory;
-    const matchesSearch =
-      item.title.includes(searchQuery) ||
-      (item.summary && item.summary.includes(searchQuery)) ||
-      (item.content && item.content.includes(searchQuery)) ||
-      (item.tags && item.tags.some((t) => t.includes(searchQuery)));
-    return matchesCategory && matchesSearch;
-  });
+  // Client-side filtering (category + search)
+  const filteredNews = React.useMemo(() => {
+    return newsList.filter((item) => {
+      const matchesCategory = selectedCategory === 'همه' || item.category_name === selectedCategory;
+      const matchesSearch =
+        !searchQuery ||
+        item.title.includes(searchQuery) ||
+        (item.summary && item.summary.includes(searchQuery)) ||
+        (item.content && item.content.includes(searchQuery)) ||
+        (item.tags && item.tags.some((t) => t.includes(searchQuery)));
+      return matchesCategory && matchesSearch;
+    });
+  }, [newsList, selectedCategory, searchQuery]);
+
+  // Client-side pagination slice
+  const paginatedNews = React.useMemo(() => {
+    const start = (currentPage - 1) * perPage;
+    return filteredNews.slice(start, start + perPage);
+  }, [filteredNews, currentPage]);
+
+  // Update lastPage when filters change, and clamp currentPage if out of bounds
+  const prevFilteredLen = React.useRef(0);
+  useEffect(() => {
+    const computedLastPage = Math.max(1, Math.ceil(filteredNews.length / perPage));
+    setLastPage(computedLastPage);
+    // Only clamp currentPage when filter results shrink (not on every render cycle)
+    if (filteredNews.length < prevFilteredLen.current && currentPage > computedLastPage) {
+      setCurrentPage(computedLastPage);
+    }
+    prevFilteredLen.current = filteredNews.length;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filteredNews.length, perPage]);
 
   const formatDate = (iso: string | null): string => {
     if (!iso) return '-';
@@ -222,6 +257,7 @@ export default function NewsArchivePage({ fontSizeScale, onNavigate, selectedNew
                   setArticleDetail(null);
                   window.history.pushState({ page: 'news' }, '', '/اخبار');
                   document.title = 'آرشیو جامع اخبار و اطلاعیه‌ها | اداره کل راه و شهرسازی استان یزد';
+                  window.scrollTo({ top: 0, behavior: 'smooth' });
                 }}
                   className="px-4 py-2 rounded-xl bg-[#1F3A5F] hover:bg-[#1F3A5F]/90 text-white font-extrabold text-xs flex items-center gap-2 cursor-pointer transition-all"
                 >
@@ -260,9 +296,9 @@ export default function NewsArchivePage({ fontSizeScale, onNavigate, selectedNew
                   </h2>
 
                   {activeArticle.summary && (
-                    <p className="text-sm sm:text-base text-gray-600 font-bold leading-relaxed bg-[#F5F6F8] p-4 rounded-2xl border-r-4 border-[#2A9D8F]">
-                      {activeArticle.summary}
-                    </p>
+                    <div className="text-sm sm:text-base text-gray-600 font-bold leading-relaxed bg-[#F5F6F8] p-4 rounded-2xl border-r-4 border-[#2A9D8F] [&_p]:mb-0"
+                      dangerouslySetInnerHTML={{ __html: decodeHtmlEntities(activeArticle.summary) }}
+                    />
                   )}
                 </div>
 
@@ -289,7 +325,7 @@ export default function NewsArchivePage({ fontSizeScale, onNavigate, selectedNew
                       <span className="text-sm text-gray-500 font-semibold">در حال دریافت متن خبر...</span>
                     </div>
                   ) : (
-                    <div dangerouslySetInnerHTML={{ __html: (articleDetail && articleDetail.content) || activeArticle.content || activeArticle.summary || '' }} />
+                    <div dangerouslySetInnerHTML={{ __html: decodeHtmlEntities((articleDetail && articleDetail.content) || activeArticle.content || activeArticle.summary || '') }} />
                   )}
                 </div>
 
@@ -431,7 +467,10 @@ export default function NewsArchivePage({ fontSizeScale, onNavigate, selectedNew
                     {allCategories.map((cat) => (
                       <button
                         key={cat}
-                        onClick={() => setSelectedCategory(cat)}
+                        onClick={() => {
+                          setSelectedCategory(cat);
+                          setCurrentPage(1);
+                        }}
                         className={`px-4 py-2 rounded-xl text-xs font-black transition-all whitespace-nowrap cursor-pointer ${
                           selectedCategory === cat
                             ? 'bg-[#1F3A5F] text-white shadow-md'
@@ -448,7 +487,10 @@ export default function NewsArchivePage({ fontSizeScale, onNavigate, selectedNew
                     <input
                       type="text"
                       value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
+                      onChange={(e) => {
+                        setSearchQuery(e.target.value);
+                        setCurrentPage(1);
+                      }}
                       placeholder="جستجو در عنوان یا متن اخبار..."
                       className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-300 rounded-xl text-xs font-bold text-[#1F3A5F] focus:outline-none focus:border-[#2A9D8F]"
                     />
@@ -474,7 +516,7 @@ export default function NewsArchivePage({ fontSizeScale, onNavigate, selectedNew
                 </div>
               ) : !loading ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {filteredNews.map((news) => (
+                  {paginatedNews.map((news) => (
                     <motion.div
                       key={news.id}
                       whileHover={{ y: -6 }}
@@ -519,7 +561,7 @@ export default function NewsArchivePage({ fontSizeScale, onNavigate, selectedNew
                           </h3>
 
                           <p className="text-xs text-gray-600 line-clamp-3 font-semibold leading-relaxed">
-                            {news.summary || (news.content ? news.content.replace(/<[^>]*>/g, '').slice(0, 150) + '...' : '')}
+                            {decodeAndStripHtml(news.summary || (news.content ? news.content.replace(/<[^>]*>/g, '').slice(0, 150) + '...' : ''))}
                           </p>
                         </div>
                       </div>
@@ -533,6 +575,54 @@ export default function NewsArchivePage({ fontSizeScale, onNavigate, selectedNew
                   ))}
                 </div>
               ) : null}
+
+              {/* Pagination Controls — Client-side */}
+              {!activeArticle && !loading && lastPage > 1 && (
+                <div className="flex flex-col items-center gap-4 pt-8">
+                  <div className="text-xs text-gray-500 font-semibold">
+                    صفحه {currentPage.toLocaleString('fa-IR')} از {lastPage.toLocaleString('fa-IR')} (مجموع {filteredNews.length.toLocaleString('fa-IR')} خبر)
+                  </div>
+                  <div className="flex items-center gap-2" dir="ltr">
+                    <button
+                      onClick={() => { window.scrollTo({ top: 0, behavior: 'smooth' }); setCurrentPage(prev => Math.max(1, prev - 1)); }}
+                      disabled={currentPage <= 1}
+                      className="px-4 py-2 rounded-xl text-xs font-bold border border-gray-300 bg-white text-[#1F3A5F] hover:bg-[#1F3A5F] hover:text-white disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-white disabled:hover:text-[#1F3A5F] transition-all cursor-pointer"
+                    >
+                      <i className="fa-solid fa-chevron-right ml-1"></i>
+                      قبلی
+                    </button>
+
+                    {Array.from({ length: lastPage }, (_, i) => i + 1)
+                      .filter(p => p === 1 || p === lastPage || Math.abs(p - currentPage) <= 2)
+                      .map((p, idx, arr) => (
+                        <React.Fragment key={p}>
+                          {idx > 0 && arr[idx - 1] !== p - 1 && (
+                            <span className="text-gray-400 px-1 text-xs">...</span>
+                          )}
+                          <button
+                            onClick={() => { window.scrollTo({ top: 0, behavior: 'smooth' }); setCurrentPage(p); }}
+                            className={`w-10 h-10 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                              p === currentPage
+                                ? 'bg-[#1F3A5F] text-white shadow-md'
+                                : 'bg-white border border-gray-300 text-[#1F3A5F] hover:bg-gray-100'
+                            }`}
+                          >
+                            {p.toLocaleString('fa-IR')}
+                          </button>
+                        </React.Fragment>
+                      ))}
+
+                    <button
+                      onClick={() => { window.scrollTo({ top: 0, behavior: 'smooth' }); setCurrentPage(prev => Math.min(lastPage, prev + 1)); }}
+                      disabled={currentPage >= lastPage}
+                      className="px-4 py-2 rounded-xl text-xs font-bold border border-gray-300 bg-white text-[#1F3A5F] hover:bg-[#1F3A5F] hover:text-white disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-white disabled:hover:text-[#1F3A5F] transition-all cursor-pointer"
+                    >
+                      بعدی
+                      <i className="fa-solid fa-chevron-left mr-1"></i>
+                    </button>
+                  </div>
+                </div>
+              )}
             </motion.div>
           )}
         </AnimatePresence>

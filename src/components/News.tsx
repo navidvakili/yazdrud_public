@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { API } from '../shared-utils';
+import { API, decodeHtmlEntities, decodeAndStripHtml } from '../shared-utils';
 import { NewsItem } from '../types';
 
 interface NewsProps {
@@ -22,7 +22,7 @@ export default function News({ fontSizeScale, onNavigate }: NewsProps) {
     setLoading(true);
     setError(null);
     try {
-      const res = await API<{ data: NewsItem[] }>('news?per_page=20');
+      const res = await API<{ data: NewsItem[] }>('news?per_page=7');
       setNewsList(res.data || []);
     } catch (err: any) {
       setError(err.message || 'خطا در بارگذاری اخبار');
@@ -139,73 +139,136 @@ export default function News({ fontSizeScale, onNavigate }: NewsProps) {
         </div>
       )}
 
-      {/* News Grid (3 Columns) */}
-      {!loading && !error && (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-          {filteredNews.map((news) => (
-            <article
-              key={news.id}
-              onClick={() => {
-                if (onNavigate) onNavigate('news', news.id, news.title);
-              }}
-              className="group glass-card rounded-2xl overflow-hidden shadow-lg transition-all flex flex-col justify-between cursor-pointer border border-white/35"
-            >
-              <div>
-                {/* Image with Tag Overlay */}
-                <div className="relative h-48 overflow-hidden">
-                  {news.image_url ? (
-                    <img
-                      src={news.image_url}
-                      alt={news.title}
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                      referrerPolicy="no-referrer"
-                    />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-[#1F3A5F]/10 to-[#B76E4C]/10">
-                      <i className="fa-solid fa-newspaper text-4xl text-gray-300"></i>
-                    </div>
-                  )}
-                  <span
-                    className="absolute top-3 right-3 text-white text-[10px] font-bold px-2.5 py-1 rounded-full shadow"
-                    style={{ backgroundColor: news.category_color || '#B76E4C' }}
-                  >
-                    {news.category_name || 'عمومی'}
+      {/* News Grid — Latest featured + 6 in grid */}
+      {!loading && !error && filteredNews.length > 0 && (
+        <div className="space-y-8">
+          {/* Top Featured Article (latest/pinned) */}
+          <article
+            onClick={() => {
+              if (onNavigate) onNavigate('news', filteredNews[0].id, filteredNews[0].title);
+            }}
+            className="group glass-card rounded-2xl overflow-hidden shadow-lg transition-all cursor-pointer border border-white/35 hover:shadow-xl"
+          >
+            <div className="grid grid-cols-1 md:grid-cols-2">
+              {/* Featured Image */}
+              <div className="relative h-64 md:h-full min-h-[250px] overflow-hidden">
+                {filteredNews[0].image_url ? (
+                  <img
+                    src={filteredNews[0].image_url}
+                    alt={filteredNews[0].title}
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                    referrerPolicy="no-referrer"
+                  />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-[#1F3A5F]/10 to-[#B76E4C]/10">
+                    <i className="fa-solid fa-newspaper text-5xl text-gray-300"></i>
+                  </div>
+                )}
+                <span className="absolute top-3 right-3 bg-[#B76E4C] text-white text-[10px] font-bold px-3 py-1 rounded-full shadow">
+                  {filteredNews[0].category_name || 'عمومی'}
+                </span>
+                <span className="absolute top-3 left-3 bg-[#2A9D8F] text-white text-[10px] font-bold px-3 py-1 rounded-full shadow flex items-center gap-1">
+                  <i className="fa-solid fa-star"></i>
+                  <span>خبر ویژه</span>
+                </span>
+              </div>
+
+              {/* Featured Content */}
+              <div className="p-6 md:p-8 flex flex-col justify-center">
+                <div className="flex items-center gap-3 text-[11px] text-gray-500 font-mono mb-3">
+                  <span className="flex items-center gap-1">
+                    <i className="fa-solid fa-calendar-day text-[#2A9D8F]"></i>
+                    <span>{formatDate(filteredNews[0].published_at || filteredNews[0].created_at)}</span>
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <i className="fa-solid fa-eye text-[#2A9D8F]"></i>
+                    <span>{filteredNews[0].views_count.toLocaleString('fa-IR')} بازدید</span>
                   </span>
                 </div>
 
-                {/* Body */}
-                <div className="p-5 space-y-3">
-                  <div className="flex justify-between items-center text-[10px] text-gray-500 font-mono">
-                    <span className="flex items-center gap-1">
-                      <i className="fa-solid fa-calendar-day text-[#2A9D8F]"></i>
-                      <span>{formatDate(news.published_at || news.created_at)}</span>
-                    </span>
-                    <span className="flex items-center gap-1">
-                      <i className="fa-solid fa-eye text-[#2A9D8F]"></i>
-                      <span>{news.views_count.toLocaleString('fa-IR')} بازدید</span>
+                <h4 className="text-xl md:text-2xl font-black text-[#1F3A5F] leading-snug group-hover:text-[#B76E4C] transition-colors mb-3">
+                  {filteredNews[0].title}
+                </h4>
+
+                <p className="text-sm text-gray-600 font-medium leading-relaxed line-clamp-4 mb-4">
+                  {decodeAndStripHtml(filteredNews[0].summary || (filteredNews[0].content ? filteredNews[0].content.replace(/<[^>]*>/g, '').slice(0, 250) + '...' : ''))}
+                </p>
+
+                <div className="flex items-center gap-2 text-sm font-bold text-[#2A9D8F] group-hover:text-[#B76E4C] transition-colors">
+                  <span>مطالعه کامل خبر</span>
+                  <i className="fa-solid fa-arrow-left-long group-hover:-translate-x-1 transition-transform"></i>
+                </div>
+              </div>
+            </div>
+          </article>
+
+          {/* Remaining 6 Articles in 3-Column Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            {filteredNews.slice(1).map((news) => (
+              <article
+                key={news.id}
+                onClick={() => {
+                  if (onNavigate) onNavigate('news', news.id, news.title);
+                }}
+                className="group glass-card rounded-2xl overflow-hidden shadow-lg transition-all flex flex-col justify-between cursor-pointer border border-white/35"
+              >
+                <div>
+                  {/* Image with Tag Overlay */}
+                  <div className="relative h-48 overflow-hidden">
+                    {news.image_url ? (
+                      <img
+                        src={news.image_url}
+                        alt={news.title}
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                        referrerPolicy="no-referrer"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-[#1F3A5F]/10 to-[#B76E4C]/10">
+                        <i className="fa-solid fa-newspaper text-4xl text-gray-300"></i>
+                      </div>
+                    )}
+                    <span
+                      className="absolute top-3 right-3 text-white text-[10px] font-bold px-2.5 py-1 rounded-full shadow"
+                      style={{ backgroundColor: news.category_color || '#B76E4C' }}
+                    >
+                      {news.category_name || 'عمومی'}
                     </span>
                   </div>
 
-                  <h4 className="text-base font-extrabold text-[#1F3A5F] leading-snug group-hover:text-[#B76E4C] transition-colors">
-                    {news.title}
-                  </h4>
+                  {/* Body */}
+                  <div className="p-5 space-y-3">
+                    <div className="flex justify-between items-center text-[10px] text-gray-500 font-mono">
+                      <span className="flex items-center gap-1">
+                        <i className="fa-solid fa-calendar-day text-[#2A9D8F]"></i>
+                        <span>{formatDate(news.published_at || news.created_at)}</span>
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <i className="fa-solid fa-eye text-[#2A9D8F]"></i>
+                        <span>{news.views_count.toLocaleString('fa-IR')} بازدید</span>
+                      </span>
+                    </div>
 
-                  <p className="text-xs text-gray-600 font-medium leading-relaxed line-clamp-3">
-                    {news.summary || (news.content ? news.content.replace(/<[^>]*>/g, '').slice(0, 150) + '...' : '')}
-                  </p>
+                    <h4 className="text-base font-extrabold text-[#1F3A5F] leading-snug group-hover:text-[#B76E4C] transition-colors">
+                      {news.title}
+                    </h4>
+
+                    <p className="text-xs text-gray-600 font-medium leading-relaxed line-clamp-3">
+                      {decodeAndStripHtml(news.summary || (news.content ? news.content.replace(/<[^>]*>/g, '').slice(0, 150) + '...' : ''))}
+                    </p>
+                  </div>
                 </div>
-              </div>
 
-              {/* Read More Footer */}
-              <div className="p-5 pt-0 border-t border-gray-50 flex items-center justify-between text-xs font-bold text-[#1F3A5F] group-hover:text-[#2A9D8F] transition-colors">
-                <span>مطالعه کامل خبر</span>
-                <i className="fa-solid fa-arrow-left-long group-hover:-translate-x-1 transition-transform"></i>
-              </div>
-            </article>
-          ))}
+                {/* Read More Footer */}
+                <div className="p-5 pt-0 border-t border-gray-50 flex items-center justify-between text-xs font-bold text-[#1F3A5F] group-hover:text-[#2A9D8F] transition-colors">
+                  <span>مطالعه کامل خبر</span>
+                  <i className="fa-solid fa-arrow-left-long group-hover:-translate-x-1 transition-transform"></i>
+                </div>
+              </article>
+            ))}
+          </div>
 
           {filteredNews.length === 0 && (
-            <div className="col-span-1 md:col-span-3 text-center py-12 text-gray-500 text-sm font-semibold">
+            <div className="text-center py-12 text-gray-500 text-sm font-semibold">
               هیچ خبری منطبق با جستجو یا دسته انتخابی شما یافت نشد.
             </div>
           )}

@@ -52,6 +52,39 @@ export const API = async <T = any>(URL: string, params: any = {}, method: string
  * Collect browser fingerprint data to identify the current device/browser.
  * Returns a JSON string with device and browser characteristics.
  */
+/**
+ * Decode HTML entities (e.g. `&amp;lt;p&amp;gt;` → `<p>`)
+ * so that content with double-encoded HTML can be safely rendered
+ * via dangerouslySetInnerHTML.
+ *
+ * NOTE: `&amp;nbsp;` becomes `&nbsp;` here — the browser parses `&nbsp;`
+ * correctly inside dangerouslySetInnerHTML, so only one pass is needed.
+ */
+export const decodeHtmlEntities = (text: string): string => {
+  const txt = document.createElement('textarea');
+  txt.innerHTML = text;
+  return txt.value;
+};
+
+/**
+ * Deep-decode HTML entities AND strip all HTML tags, leaving only plain text.
+ * Use this for excerpts rendered inside text nodes (not dangerouslySetInnerHTML).
+ * Keeps decoding until no entities remain (handles `&amp;nbsp;` → `&nbsp;` → actual space).
+ * e.g. `&amp;lt;p&amp;gt;&amp;nbsp;متن&amp;lt;/p&amp;gt;` → ` متن`
+ */
+export const decodeAndStripHtml = (text: string): string => {
+  if (!text) return '';
+  const txt = document.createElement('textarea');
+  let prev: string;
+  let current = text;
+  do {
+    prev = current;
+    txt.innerHTML = current;
+    current = txt.value;
+  } while (current !== prev);
+  return current.replace(/<[^>]*>/g, '');
+};
+
 export const getBrowserFingerprint = (): string => {
   if (typeof window === 'undefined') return '{}';
 

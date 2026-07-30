@@ -71,6 +71,15 @@ export function resolveRoute(path: string): RouteResult {
     };
   }
 
+  // لینک کوتاه: /n/{id}
+  const shortLinkMatch = normalized.match(/^\/n\/(\d+)$/);
+  if (shortLinkMatch) {
+    return {
+      page: 'news',
+      newsId: parseInt(shortLinkMatch[1], 10),
+    };
+  }
+
   // تطابق دقیق مسیر
   if (PATH_TO_KEY.has(normalized)) {
     return { page: PATH_TO_KEY.get(normalized)! };
