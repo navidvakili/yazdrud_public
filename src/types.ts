@@ -167,6 +167,7 @@ export interface Layer {
   color: string;
   backgroundColor: string;
   backgroundGradient?: string;
+  backgroundOpacity?: number;
   borderRadius: number;
   borderWidth: number;
   borderColor: string;

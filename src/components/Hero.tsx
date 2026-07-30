@@ -257,7 +257,6 @@ export default function Hero({ onNavigate }: HeroProps) {
                     fontFamily: layer.fontFamily,
                     fontWeight: layer.fontWeight,
                     color: layer.color,
-                    backgroundColor: layer.backgroundColor,
                     borderRadius: `${layer.borderRadius * scaleFactor}px`,
                     borderWidth: layer.borderWidth ? `${layer.borderWidth}px` : undefined,
                     borderColor: layer.borderColor || undefined,
@@ -268,33 +267,49 @@ export default function Hero({ onNavigate }: HeroProps) {
                     cursor: layer.interactions.length > 0 ? 'pointer' : 'default',
                     textAlign: layer.textAlign || undefined,
                   }}
-                  className="flex items-center justify-center"
+                  className=""
                 >
-                  {layer.type === 'image' ? (
-                    <img
-                      src={layer.content}
-                      alt={layer.name}
-                      className="w-full h-full object-cover"
-                      style={{ borderRadius: 'inherit' }}
+                  {/* Layer Background */}
+                  {(layer.backgroundColor !== 'transparent' || layer.backgroundGradient) && (
+                    <div
+                      style={{
+                        position: 'absolute',
+                        inset: 0,
+                        background: layer.backgroundGradient || layer.backgroundColor,
+                        borderRadius: `${layer.borderRadius * scaleFactor}px`,
+                        opacity: layer.backgroundOpacity !== undefined ? layer.backgroundOpacity / 100 : 1,
+                        pointerEvents: 'none',
+                      }}
                     />
-                  ) : layer.type === 'video' ? (
-                    <video
-                      src={layer.content}
-                      autoPlay
-                      loop
-                      muted
-                      playsInline
-                      className="w-full h-full object-cover"
-                    />
-                  ) : layer.type === 'button' ? (
-                    <button className="w-full h-full font-black text-center flex items-center justify-center gap-2 cursor-pointer">
-                      {layer.content}
-                    </button>
-                  ) : (
-                    <div className="w-full h-full leading-snug flex items-center justify-center overflow-hidden">
-                      {layer.content}
-                    </div>
                   )}
+                  {/* Layer Content */}
+                  <div className="w-full h-full flex items-center justify-center relative z-[1]">
+                    {layer.type === 'image' ? (
+                      <img
+                        src={layer.content}
+                        alt={layer.name}
+                        className="w-full h-full object-cover"
+                        style={{ borderRadius: 'inherit' }}
+                      />
+                    ) : layer.type === 'video' ? (
+                      <video
+                        src={layer.content}
+                        autoPlay
+                        loop
+                        muted
+                        playsInline
+                        className="w-full h-full object-cover"
+                      />
+                    ) : layer.type === 'button' ? (
+                      <button className="w-full h-full font-black text-center flex items-center justify-center gap-2 cursor-pointer">
+                        {layer.content}
+                      </button>
+                    ) : (
+                      <div className="w-full h-full leading-snug flex items-center justify-center overflow-hidden">
+                        {layer.content}
+                      </div>
+                    )}
+                  </div>
                 </motion.div>
               );
             })}
