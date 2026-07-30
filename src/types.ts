@@ -108,6 +108,11 @@ export type AnimationPreset =
   | 'rotateIn'
   | 'bounceIn'
   | 'typewriter'
+  | 'splitWord'
+  | 'splitChar'
+  | 'reveal'
+  | 'wave'
+  | 'flicker'
   | 'none';
 
 export type AnimationEasing = 'linear' | 'easeIn' | 'easeOut' | 'easeInOut' | 'bounce' | 'elastic';
