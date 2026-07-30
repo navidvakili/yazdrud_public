@@ -1,7 +1,7 @@
 // ============================================================
 // DevelopmentTimeline — روند توسعه و تحول عمران شهری و جاده‌ای
 //
-// نمایش تایم‌لاین رویدادهای توسعه عمرانی در صفحه اصلی وب‌سایت
+// نمایش آیتم‌های توسعه عمرانی در صفحه اصلی وب‌سایت
 // ============================================================
 
 import { useEffect, useState, useRef } from 'react';
@@ -10,30 +10,59 @@ import { apiGet } from '../api';
 interface TimelineItem {
   id: number;
   title: string;
-  description: string | null;
-  year: string;
   icon: string | null;
-  image_url: string | null;
-  type: 'road' | 'urban' | 'both';
+  value: string | null;
+  value_index: string | null;
   sort_order: number;
+  is_active: boolean;
 }
 
 interface DevelopmentTimelineProps {
   fontSizeScale: number;
 }
 
-const typeLabels: Record<string, string> = {
-  road: 'راه‌سازی',
-  urban: 'عمران شهری',
-  both: 'توسعه عمرانی',
+const ICONS_META: Record<string, { label: string; color: string }> = {
+  'fa-road':        { label: 'جاده',          color: '#B76E4C' },
+  'fa-city':        { label: 'شهر',           color: '#1F3A5F' },
+  'fa-building':    { label: 'ساختمان',       color: '#2A9D8F' },
+  'fa-home':        { label: 'مسکن',          color: '#C98A5A' },
+  'fa-train':       { label: 'قطار',          color: '#4A6FA5' },
+  'fa-bus':         { label: 'اتوبوس',        color: '#E76F51' },
+  'fa-car':         { label: 'خودرو',         color: '#6C757D' },
+  'fa-tree':        { label: 'فضای سبز',      color: '#2D936C' },
+  'fa-water':       { label: 'آب',            color: '#00B4D8' },
+  'fa-bolt':        { label: 'برق',           color: '#FFD166' },
+  'fa-cogs':        { label: 'تجهیزات',       color: '#6C5CE7' },
+  'fa-hard-hat':    { label: 'ساخت‌وساز',     color: '#F4A261' },
+  'fa-map-marked-alt': { label: 'نقشه',       color: '#264653' },
+  'fa-industry':    { label: 'صنعت',          color: '#A8DADC' },
+  'fa-hospital':    { label: 'بیمارستان',     color: '#E63946' },
+  'fa-school':      { label: 'مدرسه',         color: '#7B2D8E' },
+  'fa-university':  { label: 'دانشگاه',       color: '#3D5A80' },
+  'fa-bridge':      { label: 'پل',            color: '#8D6E63' },
+  'fa-rocket':      { label: 'پیشرفت',        color: '#E07A5F' },
+  'fa-flag':        { label: 'افتتاح',        color: '#D62828' },
+};
+
+/** Normalize icon class for FontAwesome 6 compatibility */
+const normalizeIcon = (icon: string | null): string => {
+  if (!icon) return 'fa-solid fa-road';
+  if (icon.includes(' ')) return icon; // already has style prefix
+  return `fa-solid ${icon}`;
+};
+
+/** Extract icon name from full class (e.g. "fa-solid fa-road" → "fa-road") */
+const iconNameOnly = (icon: string | null): string => {
+  if (!icon) return 'fa-road';
+  const parts = icon.trim().split(/\s+/);
+  return parts[parts.length - 1];
 };
 
 export default function DevelopmentTimeline({ fontSizeScale }: DevelopmentTimelineProps) {
   const [items, setItems] = useState<TimelineItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [activeIndex, setActiveIndex] = useState<number | null>(null);
   const sectionRef = useRef<HTMLElement>(null);
+  const [visible, setVisible] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -45,10 +74,7 @@ export default function DevelopmentTimeline({ fontSizeScale }: DevelopmentTimeli
           setItems(result.data);
         }
       } catch (err: any) {
-        if (!cancelled) {
-          console.error('Error loading development timeline:', err);
-          setError(null); // Silently fail — don't show error to users
-        }
+        if (!cancelled) console.error('Error loading development timeline:', err);
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -63,20 +89,16 @@ export default function DevelopmentTimeline({ fontSizeScale }: DevelopmentTimeli
     if (items.length === 0) return;
 
     const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          if (entry.isIntersecting) {
-            const index = parseInt(entry.target.getAttribute('data-index') || '0');
-            setActiveIndex((prev) => (prev === null ? index : prev));
-          }
-        });
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setVisible(true);
+          observer.disconnect();
+        }
       },
-      { threshold: 0.3 }
+      { threshold: 0.15 }
     );
 
-    const cards = sectionRef.current?.querySelectorAll('.timeline-card');
-    cards?.forEach((card) => observer.observe(card));
-
+    if (sectionRef.current) observer.observe(sectionRef.current);
     return () => observer.disconnect();
   }, [items]);
 
@@ -103,115 +125,58 @@ export default function DevelopmentTimeline({ fontSizeScale }: DevelopmentTimeli
         </p>
       </div>
 
-      {/* Timeline */}
-      <div className="relative">
-        {/* Vertical Line */}
-        <div className="absolute right-4 md:right-1/2 top-0 bottom-0 w-0.5 bg-gradient-to-b from-[#2A9D8F] via-[#B76E4C] to-[#1F3A5F] opacity-30 rounded-full"></div>
+      {/* Cards Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+        {items.map((item, index) => {
+          const iconName = iconNameOnly(item.icon);
+          const iconMeta = ICONS_META[iconName] || null;
+          const iconClasses = normalizeIcon(item.icon);
+          const delay = index * 100;
 
-        <div className="space-y-8">
-          {items.map((item, index) => {
-            const isLeft = index % 2 === 0;
-            const isActive = activeIndex !== null && index <= activeIndex;
-
-            return (
+          return (
+            <div
+              key={item.id}
+              className={`
+                relative p-5 md:p-6 rounded-2xl border border-white/60 bg-white/80 backdrop-blur-sm
+                shadow-lg hover:shadow-xl transition-all duration-500 group
+                ${visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}
+              `}
+              style={{ transitionDelay: `${delay}ms` }}
+            >
+              {/* Icon */}
               <div
-                key={item.id}
-                data-index={index}
-                className={`timeline-card relative flex flex-col md:flex-row items-start gap-4 md:gap-8 transition-all duration-700 ${
-                  isActive ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'
-                }`}
-                style={{ transitionDelay: `${index * 150}ms` }}
+                className="w-12 h-12 rounded-xl flex items-center justify-center text-white text-lg shadow-md mb-4 transition-transform duration-300 group-hover:scale-110"
+                style={{ backgroundColor: iconMeta?.color || '#1F3A5F' }}
               >
-                {/* Content Card */}
-                <div
-                  className={`flex-1 group ${
-                    isLeft ? 'md:text-left md:pr-0 md:pl-0' : 'md:text-left md:pr-0 md:pl-0'
-                  } ${isLeft ? 'md:ml-auto md:pl-12' : 'md:mr-auto md:pr-12'}`}
-                  style={isLeft ? { paddingRight: '0' } : { paddingLeft: '0' }}
-                >
-                  <div
-                    className={`relative p-5 md:p-6 rounded-2xl border backdrop-blur-sm transition-all duration-300 hover:shadow-xl ${
-                      isActive
-                        ? 'bg-white/90 border-white/60 shadow-lg'
-                        : 'bg-white/50 border-white/30'
-                    }`}
-                  >
-                    {/* Type Badge */}
-                    <div className="flex items-center gap-2 mb-3">
-                      <span
-                        className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold ${
-                          item.type === 'road'
-                            ? 'bg-[#B76E4C]/10 text-[#B76E4C]'
-                            : item.type === 'urban'
-                            ? 'bg-[#2A9D8F]/10 text-[#2A9D8F]'
-                            : 'bg-[#1F3A5F]/10 text-[#1F3A5F]'
-                        }`}
-                      >
-                        <i
-                          className={`${
-                            item.icon || (item.type === 'road' ? 'fa-solid fa-road' : item.type === 'urban' ? 'fa-solid fa-city' : 'fa-solid fa-compass')
-                          }`}
-                        ></i>
-                        <span>{typeLabels[item.type]}</span>
-                      </span>
-                    </div>
-
-                    {/* Title */}
-                    <h3 className="text-lg font-bold text-[#1F3A5F] mb-2">{item.title}</h3>
-
-                    {/* Description */}
-                    {item.description && (
-                      <p className="text-xs text-gray-600 leading-relaxed font-medium">
-                        {item.description}
-                      </p>
-                    )}
-
-                    {/* Image */}
-                    {item.image_url && (
-                      <div className="mt-3 rounded-xl overflow-hidden">
-                        <img
-                          src={item.image_url}
-                          alt={item.title}
-                          className="w-full h-32 md:h-40 object-cover rounded-xl transition-transform duration-500 group-hover:scale-105"
-                          loading="lazy"
-                        />
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                {/* Year Badge - Center */}
-                <div className="hidden md:flex absolute left-1/2 -translate-x-1/2 top-6 flex-col items-center z-10">
-                  <div
-                    className={`w-10 h-10 rounded-full flex items-center justify-center shadow-lg transition-all duration-500 ${
-                      isActive
-                        ? 'bg-[#1F3A5F] text-white scale-100'
-                        : 'bg-white/80 text-gray-400 scale-90'
-                    }`}
-                  >
-                    <i className="fa-solid fa-calendar text-xs"></i>
-                  </div>
-                  <span
-                    className={`mt-1.5 text-[10px] font-bold whitespace-nowrap px-2 py-0.5 rounded-full transition-all duration-500 ${
-                      isActive
-                        ? 'bg-[#1F3A5F]/10 text-[#1F3A5F]'
-                        : 'bg-gray-100 text-gray-400'
-                    }`}
-                  >
-                    {item.year}
-                  </span>
-                </div>
-
-                {/* Mobile Year */}
-                <div className="md:hidden flex items-center gap-2 pr-12">
-                  <span className="text-xs font-bold text-[#B76E4C] bg-[#B76E4C]/10 px-2.5 py-0.5 rounded-full">
-                    {item.year}
-                  </span>
-                </div>
+                <i className={iconClasses}></i>
               </div>
-            );
-          })}
-        </div>
+
+              {/* Title */}
+              <h3 className="text-base font-bold text-[#1F3A5F] mb-3">{item.title}</h3>
+
+              {/* Value */}
+              {item.value && (
+                <div className="flex items-baseline gap-2">
+                  <span className="text-2xl md:text-3xl font-black text-[#1F3A5F]">
+                    {item.value}
+                  </span>
+                  {item.value_index && (
+                    <span className="text-xs text-gray-500 font-medium bg-gray-100 px-2 py-0.5 rounded-full">
+                      {item.value_index}
+                    </span>
+                  )}
+                </div>
+              )}
+
+              {/* Index badge at bottom */}
+              {!item.value && item.value_index && (
+                <span className="text-xs text-gray-500 font-medium bg-gray-100 px-2.5 py-1 rounded-full">
+                  {item.value_index}
+                </span>
+              )}
+            </div>
+          );
+        })}
       </div>
     </section>
   );
