@@ -60,9 +60,19 @@ export default function NewsArchivePage({ fontSizeScale, onNavigate, selectedNew
     }
   };
 
+  // Increment view count on the server (fire-and-forget)
+  const incrementArticleViews = (id: number) => {
+    API(`news/${id}/views`, {}, 'POST').catch(() => {});
+  };
+
   const handleSelectArticle = (news: NewsItem) => {
     // Scroll to top when opening article detail
     window.scrollTo({ top: 0, behavior: 'smooth' });
+
+    // Increment view count on server
+    incrementArticleViews(news.id);
+    // Optimistically bump local count
+    setNewsList(prev => prev.map(n => n.id === news.id ? { ...n, views_count: n.views_count + 1 } : n));
 
     setActiveArticle(news);
     fetchArticleDetail(news.id);
