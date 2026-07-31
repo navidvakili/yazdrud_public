@@ -586,11 +586,11 @@ export default function Hero({ onNavigate }: HeroProps) {
                             {layer.content}
                           </button>
                         ) : isTextAnimationPreset(layer.animation.inPreset) ? (
-                          <div className="w-full h-full leading-snug flex items-center" style={{ justifyContent: layer.textAlign === 'right' ? 'right' : layer.textAlign === 'left' ? 'left' : 'center' }}>
+                          <div className="w-full leading-snug flex" style={{ justifyContent: layer.textAlign === 'right' ? 'right' : layer.textAlign === 'left' ? 'left' : 'center' }}>
                             <TextAnimContent text={layer.content} preset={layer.animation.inPreset} duration={layer.animation.inDuration || 0.8} delay={layer.animation.inDelay || 0} />
                           </div>
                         ) : (
-                          <div className="w-full h-full leading-snug">{layer.content}</div>
+                          <div className="w-full leading-snug">{layer.content}</div>
                         )}
                       </div>
                     )}
