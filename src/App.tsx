@@ -89,13 +89,37 @@ export default function App() {
     } else {
       if (currentPage !== 'home') {
         pushUrl('home');
+        // Home content (hero slider, news thumbnails, map) loads async from the API.
+        // A fixed delay scrolls too early: when images/data arrive, the page grows and
+        // the target moves down — leaving the viewport on the wrong section. So wait
+        // until the target exists and its document position stops changing, then scroll.
         setTimeout(() => {
-          const targetElement = document.getElementById(pageOrSection);
-          if (targetElement) {
-            targetElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
-          } else {
-            window.scrollTo({ top: 0, behavior: 'smooth' });
-          }
+          let lastTop = -1;
+          let stableCount = 0;
+          let tries = 0;
+          const scrollToTarget = (target: HTMLElement) =>
+            target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+          const waitUntilStable = () => {
+            tries += 1;
+            const target = document.getElementById(pageOrSection);
+            if (!target) {
+              // Section not mounted yet — keep polling (bounded ~7.5s).
+              if (tries < 30) setTimeout(waitUntilStable, 250);
+              else window.scrollTo({ top: 0, behavior: 'smooth' });
+              return;
+            }
+            const top = target.getBoundingClientRect().top + window.scrollY;
+            if (top === lastTop) stableCount += 1;
+            else {
+              stableCount = 0;
+              lastTop = top;
+            }
+            // Two identical reads (~500ms apart) ⇒ layout has settled.
+            if (stableCount >= 2 || tries >= 30) scrollToTarget(target);
+            else setTimeout(waitUntilStable, 250);
+          };
+          waitUntilStable();
         }, 150);
       } else {
         const targetElement = document.getElementById(pageOrSection);
