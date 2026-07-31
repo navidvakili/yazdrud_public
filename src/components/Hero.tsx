@@ -162,6 +162,14 @@ function isTextAnimationPreset(preset: string): boolean {
   return TEXT_ANIM_PRESETS.has(preset);
 }
 
+/**
+ * Scale every `Npx` value in a CSS shorthand (e.g. "8px 20px") by a factor so
+ * layer padding stays proportional when the project is width-scaled.
+ */
+function scalePxValues(cssValue: string, factor: number): string {
+  return cssValue.replace(/([\d.]+)px/g, (_, n: string) => `${(parseFloat(n) * factor).toFixed(1)}px`);
+}
+
 function TextAnimContent({ text, preset, duration, delay }: { text: string; preset: string; duration: number; delay: number }) {
   switch (preset) {
     case 'typewriter': return <TypewriterText text={text} duration={duration} delay={delay} />;
@@ -515,7 +523,7 @@ export default function Hero({ onNavigate }: HeroProps) {
                     borderWidth: layer.borderWidth ? `${layer.borderWidth}px` : undefined,
                     borderColor: layer.borderColor || undefined,
                     borderStyle: layer.borderWidth ? 'solid' : undefined,
-                    padding: layer.padding && layer.padding !== '0px' ? layer.padding : undefined,
+                    padding: layer.padding && layer.padding !== '0px' ? scalePxValues(layer.padding, scaleFactor) : undefined,
                     zIndex: layer.zIndex,
                     boxShadow: layer.shadow !== 'none' ? layer.shadow : undefined,
                     cursor: layer.interactions.length > 0 ? 'pointer' : 'default',
@@ -578,11 +586,11 @@ export default function Hero({ onNavigate }: HeroProps) {
                             {layer.content}
                           </button>
                         ) : isTextAnimationPreset(layer.animation.inPreset) ? (
-                          <div className="w-full h-full leading-snug overflow-hidden flex items-center" style={{ justifyContent: layer.textAlign === 'right' ? 'right' : layer.textAlign === 'left' ? 'left' : 'center' }}>
+                          <div className="w-full h-full leading-snug flex items-center" style={{ justifyContent: layer.textAlign === 'right' ? 'right' : layer.textAlign === 'left' ? 'left' : 'center' }}>
                             <TextAnimContent text={layer.content} preset={layer.animation.inPreset} duration={layer.animation.inDuration || 0.8} delay={layer.animation.inDelay || 0} />
                           </div>
                         ) : (
-                          <div className="w-full h-full leading-snug overflow-hidden">{layer.content}</div>
+                          <div className="w-full h-full leading-snug">{layer.content}</div>
                         )}
                       </div>
                     )}
