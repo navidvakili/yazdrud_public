@@ -381,10 +381,17 @@ export default function Hero({ onNavigate }: HeroProps) {
           {activeSlide.layers
             .filter((l) => l.visible)
             .map((layer) => {
-              const layerX = layer.x * scaleFactor;
-              const layerY = layer.y * scaleFactor;
-              const layerW = layer.width * scaleFactor;
-              const layerH = layer.height * scaleFactor;
+              // Full-bleed layers (created by «پر کردن اسلاید»: x=0, y=0, size = project size)
+              // stretch to cover the whole hero container regardless of viewport aspect ratio.
+              const isFullBleed =
+                layer.x === 0 &&
+                layer.y === 0 &&
+                Math.abs(layer.width - (project?.width || 1240)) < 1 &&
+                Math.abs(layer.height - (project?.height || 720)) < 1;
+              const layerX = isFullBleed ? 0 : layer.x * scaleFactor;
+              const layerY = isFullBleed ? 0 : layer.y * scaleFactor;
+              const layerW = isFullBleed ? '100%' : `${layer.width * scaleFactor}px`;
+              const layerH = isFullBleed ? '100%' : `${layer.height * scaleFactor}px`;
               const layerFontSize = layer.fontSize * scaleFactor;
 
               // Animation variants
@@ -454,8 +461,8 @@ export default function Hero({ onNavigate }: HeroProps) {
                     position: 'absolute',
                     left: `${layerX}px`,
                     top: `${layerY}px`,
-                    width: `${layerW}px`,
-                    height: `${layerH}px`,
+                    width: typeof layerW === 'string' ? layerW : `${layerW}px`,
+                    height: typeof layerH === 'string' ? layerH : `${layerH}px`,
                     fontSize: `${layerFontSize}px`,
                     fontFamily: layer.fontFamily,
                     fontWeight: layer.fontWeight,
