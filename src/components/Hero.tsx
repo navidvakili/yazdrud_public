@@ -265,19 +265,34 @@ export default function Hero({ onNavigate }: HeroProps) {
     touchStartXRef.current = null;
   };
 
-  // Calculate scale factor: fit project width into viewport
-  const [scaleFactor, setScaleFactor] = useState(1);
+  // Scale factor: fit project width into viewport.
+  // offsetY keeps slide content clear of the fixed header and vertically
+  // centers the (width-scaled) canvas in the visible area below it.
+  const [layout, setLayout] = useState({ scaleFactor: 1, offsetY: 0 });
   useEffect(() => {
     const updateScale = () => {
-      if (!containerRef.current) return;
-      const vw = containerRef.current.clientWidth;
+      const el = containerRef.current;
+      if (!el) return;
+      const vw = el.clientWidth;
+      const vh = el.clientHeight;
       const pWidth = project?.width || 1240;
-      setScaleFactor(vw / pWidth);
+      const pHeight = project?.height || 720;
+      const scale = vw / pWidth;
+      const canvasH = pHeight * scale;
+      const headerEl = document.querySelector('header');
+      const headerH = headerEl ? headerEl.getBoundingClientRect().height : 0;
+      const availH = vh - headerH;
+      // Only offset when the canvas fits below the header; otherwise keep the
+      // current top-pinned layout (desktop wide screens keep their exact look).
+      const offsetY = canvasH < availH ? headerH + (availH - canvasH) / 2 : 0;
+      setLayout({ scaleFactor: scale, offsetY });
     };
     updateScale();
     window.addEventListener('resize', updateScale);
     return () => window.removeEventListener('resize', updateScale);
-  }, [project?.width]);
+  }, [project?.width, project?.height]);
+
+  const { scaleFactor, offsetY } = layout;
 
   // Loading state
   if (loading) {
@@ -389,7 +404,7 @@ export default function Hero({ onNavigate }: HeroProps) {
                 Math.abs(layer.width - (project?.width || 1240)) < 1 &&
                 Math.abs(layer.height - (project?.height || 720)) < 1;
               const layerX = isFullBleed ? 0 : layer.x * scaleFactor;
-              const layerY = isFullBleed ? 0 : layer.y * scaleFactor;
+              const layerY = isFullBleed ? 0 : layer.y * scaleFactor + offsetY;
               const layerW = isFullBleed ? '100%' : `${layer.width * scaleFactor}px`;
               const layerH = isFullBleed ? '100%' : `${layer.height * scaleFactor}px`;
               const layerFontSize = layer.fontSize * scaleFactor;
