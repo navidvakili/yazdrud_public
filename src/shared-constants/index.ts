@@ -13,4 +13,4 @@ export const API_BASE_URL = import.meta.env.DEV
   : 'https://db.yazdrud.ir/api';
 
 /** نام سازمان / دانشگاه */
-export const COMPANY_NAME = 'نرم‌افزار یکپارچه مدیریت محتوای نیما';
+export const COMPANY_NAME = 'شرکت فناوری اطلاعات کارانت';
