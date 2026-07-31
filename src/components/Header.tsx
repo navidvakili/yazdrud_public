@@ -19,7 +19,6 @@ export default function Header({
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearchOpen, setIsSearchOpen] = useState(false);
-  const [currentLang, setCurrentLang] = useState<'fa' | 'en'>('fa');
   const [isScrolled, setIsScrolled] = useState(false);
 
   useEffect(() => {
@@ -61,16 +60,6 @@ export default function Header({
 
   const handleFontDecrease = () => {
     if (fontSizeScale > 0.9) setFontSizeScale(fontSizeScale - 0.1);
-  };
-
-  const toggleLanguage = () => {
-    const nextLang = currentLang === 'fa' ? 'en' : 'fa';
-    setCurrentLang(nextLang);
-    alert(
-      nextLang === 'en'
-        ? 'English version of this portal is undergoing maintenance. You are browsing the Persian edition.'
-        : 'زبان پورتال به فارسی تغییر یافت.'
-    );
   };
 
   const handleSearchSubmit = (e: React.FormEvent) => {
@@ -155,14 +144,6 @@ export default function Header({
             <span className="hidden sm:inline">جستجو</span>
           </button>
 
-          {/* Language Switcher */}
-          <button
-            onClick={toggleLanguage}
-            className="px-2.5 py-1 text-[11px] font-mono font-bold rounded bg-[#2A9D8F] hover:bg-[#2A9D8F]/90 text-white transition-all"
-            title="Change Language / تغییر زبان"
-          >
-            {currentLang === 'fa' ? 'EN' : 'FA'}
-          </button>
         </div>
       </div>
 

@@ -282,9 +282,38 @@ export default function Hero({ onNavigate }: HeroProps) {
       const headerEl = document.querySelector('header');
       const headerH = headerEl ? headerEl.getBoundingClientRect().height : 0;
       const availH = vh - headerH;
-      // Only offset when the canvas fits below the header; otherwise keep the
-      // current top-pinned layout (desktop wide screens keep their exact look).
-      const offsetY = canvasH < availH ? headerH + (availH - canvasH) / 2 : 0;
+
+      // Topmost non-full-bleed layer — content that must stay clear of the fixed header.
+      const slideLayers = project?.slides?.flatMap((s) => s.layers) || [];
+      const contentTopY = Math.min(
+        ...slideLayers
+          .filter(
+            (l) =>
+              l.visible &&
+              !(
+                l.x === 0 &&
+                l.y === 0 &&
+                Math.abs(l.width - pWidth) < 1 &&
+                Math.abs(l.height - pHeight) < 1
+              )
+          )
+          .map((l) => l.y)
+      );
+      const contentTopScreen = Number.isFinite(contentTopY) ? contentTopY * scale : 0;
+
+      let offsetY: number;
+      if (canvasH < availH) {
+        // Canvas fits below the header → center it in the visible area.
+        offsetY = headerH + (availH - canvasH) / 2;
+      } else if (contentTopScreen < headerH) {
+        // Canvas is taller than the visible area AND its top content would hide
+        // under the fixed header → pin the canvas right below the header.
+        offsetY = headerH;
+      } else {
+        // Top content already clears the header (wide desktop) → keep the
+        // original top-pinned layout for the exact designed look.
+        offsetY = 0;
+      }
       setLayout({ scaleFactor: scale, offsetY });
     };
     updateScale();
