@@ -42,6 +42,8 @@ const SHAPE_CLIP_PATHS: Record<string, string> = {
   lightningBolt: 'polygon(52% 0%, 8% 58%, 40% 58%, 30% 100%, 92% 38%, 58% 38%)',
   plus: 'polygon(38% 0%, 62% 0%, 62% 38%, 100% 38%, 100% 62%, 62% 62%, 62% 100%, 38% 100%, 38% 62%, 0% 62%, 0% 38%, 38% 38%)',
   minus: 'polygon(0% 42%, 100% 42%, 100% 58%, 0% 58%)',
+  horizontalLine: 'inset(45% 0% 45% 0%)',
+  verticalLine: 'inset(0% 45% 0% 45%)',
   multiply: 'polygon(39% 0%, 61% 0%, 100% 39%, 100% 61%, 61% 100%, 39% 100%, 0% 61%, 0% 39%)',
   speechBubble: 'polygon(6% 0%, 94% 0%, 100% 6%, 100% 70%, 52% 70%, 42% 88%, 36% 70%, 0% 70%, 0% 6%)',
   thoughtBubble: 'circle(50% 45% at 56% 40%)',
@@ -63,7 +65,8 @@ const SHAPE_SYMMETRIC = new Set<string>([
   'circle', 'ellipse', 'triangle', 'diamond', 'pentagon',
   'hexagon', 'octagon', 'star', 'heart', 'semicircle',
   'quarterCircle', 'burst', 'blob', 'smiley', 'notAllowed',
-  'thoughtBubble', 'divide', 'equals', 'minus', 'plus', 'cross', 'multiply',
+  'thoughtBubble', 'divide', 'equals', 'minus', 'horizontalLine',
+  'verticalLine', 'plus', 'cross', 'multiply',
 ]);
 
 /** preserveAspectRatio value for a shape (mirrors editor constants). */
@@ -120,6 +123,8 @@ const SHAPE_SVG_TEMPLATES: Record<string, (fill: string, stroke: string, strokeW
   lightningBolt: (f, s, sw) => `<polygon points="52,0 8,58 40,58 30,100 92,38 58,38" fill="${f}"${SHAPE_STROKE(s, sw)}/>`,
   plus: (f, s, sw) => `<path fill-rule="evenodd" d="M38 0 L62 0 L62 38 L100 38 L100 62 L62 62 L62 100 L38 100 L38 62 L0 62 L0 38 L38 38 Z" fill="${f}"${SHAPE_STROKE(s, sw)}/>`,
   minus: (f, s, sw) => `<rect x="0" y="42" width="100" height="16" fill="${f}"${SHAPE_STROKE(s, sw)}/>`,
+  horizontalLine: (f, s, sw) => `<rect x="0" y="45" width="100" height="10" rx="5" fill="${f}"${SHAPE_STROKE(s, sw)}/>`,
+  verticalLine: (f, s, sw) => `<rect x="45" y="0" width="10" height="100" rx="5" fill="${f}"${SHAPE_STROKE(s, sw)}/>`,
   multiply: (f, s, sw) => {
     const o = SHAPE_STROKE(s, sw);
     return (
@@ -147,8 +152,8 @@ const SHAPE_SVG_TEMPLATES: Record<string, (fill: string, stroke: string, strokeW
     );
   },
   notAllowed: (f, s, sw) => {
-    // همه اجزا از یک رنگ استفاده می‌کنند
-    const color = s !== 'transparent' && s !== 'undefined' ? s : '#ef4444';
+    // رنگ همانند سایر اشکال از fill لایه می‌آید (دایره توخالی — رنگ از پس‌زمینه لایه)
+    const color = f && f !== 'transparent' && f !== 'undefined' ? f : '#ef4444';
     const thickness = sw > 0 ? sw : 10;
 
     return `
