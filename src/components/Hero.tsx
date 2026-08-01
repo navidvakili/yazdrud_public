@@ -56,6 +56,21 @@ const SHAPE_CLIP_PATHS: Record<string, string> = {
 const SHAPE_STROKE = (color: string, width: number) =>
   width > 0 ? ` vector-effect="non-scaling-stroke" stroke="${color}" stroke-width="${width}"` : '';
 
+/** Shapes that must keep their natural proportions — rendered with
+ *  preserveAspectRatio="xMidYMid meet" (centered, letterboxed) so they
+ *  never distort on non-square layers. Everything else stretches. */
+const SHAPE_SYMMETRIC = new Set<string>([
+  'circle', 'ellipse', 'triangle', 'diamond', 'pentagon',
+  'hexagon', 'octagon', 'star', 'heart', 'semicircle',
+  'quarterCircle', 'burst', 'blob', 'smiley', 'notAllowed',
+  'thoughtBubble', 'divide', 'equals', 'minus', 'plus', 'cross', 'multiply',
+]);
+
+/** preserveAspectRatio value for a shape (mirrors editor constants). */
+function getShapePreserveAspect(shape: string): string {
+  return SHAPE_SYMMETRIC.has(shape) ? 'xMidYMid meet' : 'none';
+}
+
 /** Inline-SVG template for EVERY shape (mirrors the editor's
  *  constants/shapes.ts). Shared 0..100 coordinate system; direct port of
  *  the legacy clip-path percentages so shapes stay undistorted at any size. */
@@ -72,7 +87,7 @@ const SHAPE_SVG_TEMPLATES: Record<string, (fill: string, stroke: string, strokeW
   heart: (f, s, sw) => `<path d="M50 90 C20 64 0 48 0 26 C0 10 12 0 26 0 C37 0 47 8 50 18 C53 8 63 0 74 0 C88 0 100 10 100 26 C100 48 80 64 50 90 Z" fill="${f}"${SHAPE_STROKE(s, sw)}/>`,
   parallelogram: (f, s, sw) => `<polygon points="25,0 100,0 75,100 0,100" fill="${f}"${SHAPE_STROKE(s, sw)}/>`,
   trapezoid: (f, s, sw) => `<polygon points="20,0 80,0 100,100 0,100" fill="${f}"${SHAPE_STROKE(s, sw)}/>`,
-  cross: (f, s, sw) => `<path d="M20 0 L80 0 L80 20 L100 20 L100 80 L80 80 L80 100 L20 100 L20 80 L0 80 L0 20 L20 20 Z" fill="${f}"${SHAPE_STROKE(s, sw)}/>`,
+  cross: (f, s, sw) => `<path fill-rule="evenodd" d="M20 0 L80 0 L80 20 L100 20 L100 80 L80 80 L80 100 L20 100 L20 80 L0 80 L0 20 L20 20 Z" fill="${f}"${SHAPE_STROKE(s, sw)}/>`,
   arrowRight: (f, s, sw) => `<polygon points="0,20 60,20 60,0 100,50 60,100 60,80 0,80" fill="${f}"${SHAPE_STROKE(s, sw)}/>`,
   arrowLeft: (f, s, sw) => `<polygon points="40,0 40,20 100,20 100,80 40,80 40,100 0,50" fill="${f}"${SHAPE_STROKE(s, sw)}/>`,
   arrowUp: (f, s, sw) => `<polygon points="20,40 0,40 50,0 100,40 80,40 80,100 20,100" fill="${f}"${SHAPE_STROKE(s, sw)}/>`,
@@ -85,11 +100,11 @@ const SHAPE_SVG_TEMPLATES: Record<string, (fill: string, stroke: string, strokeW
   chevronLeft: (f, s, sw) => `<polygon points="25,0 100,0 75,50 100,100 25,100 0,50" fill="${f}"${SHAPE_STROKE(s, sw)}/>`,
   chevronUp: (f, s, sw) => `<polygon points="0,75 50,0 100,75 75,75 50,25 25,75" fill="${f}"${SHAPE_STROKE(s, sw)}/>`,
   chevronDown: (f, s, sw) => `<polygon points="0,25 25,25 50,75 75,25 100,25 50,100" fill="${f}"${SHAPE_STROKE(s, sw)}/>`,
-  cloud: (f, s, sw) => `<polygon points="22,78 8,78 4,64 12,56 8,42 20,30 34,28 42,16 58,16 66,28 80,26 94,36 100,52 94,62 100,70 88,78" fill="${f}"${SHAPE_STROKE(s, sw)}/>`,
+  cloud: (f, s, sw) => `<polygon points="16,78 8,70 4,58 14,46 26,42 34,28 50,20 66,24 78,32 90,22 100,36 100,56 90,66 96,74 86,78" fill="${f}"${SHAPE_STROKE(s, sw)}/>`,
   lightningBolt: (f, s, sw) => `<polygon points="52,0 8,58 40,58 30,100 92,38 58,38" fill="${f}"${SHAPE_STROKE(s, sw)}/>`,
-  plus: (f, s, sw) => `<path d="M38 0 L62 0 L62 38 L100 38 L100 62 L62 62 L62 100 L38 100 L38 62 L0 62 L0 38 L38 38 Z" fill="${f}"${SHAPE_STROKE(s, sw)}/>`,
+  plus: (f, s, sw) => `<path fill-rule="evenodd" d="M38 0 L62 0 L62 38 L100 38 L100 62 L62 62 L62 100 L38 100 L38 62 L0 62 L0 38 L38 38 Z" fill="${f}"${SHAPE_STROKE(s, sw)}/>`,
   minus: (f, s, sw) => `<rect x="0" y="42" width="100" height="16" fill="${f}"${SHAPE_STROKE(s, sw)}/>`,
-  multiply: (f, s, sw) => `<polygon points="39,0 61,0 100,39 100,61 61,100 39,100 0,61 0,39" fill="${f}"${SHAPE_STROKE(s, sw)}/>`,
+  multiply: (f, s, sw) => `<polygon fill-rule="evenodd" points="39,0 61,0 100,39 100,61 61,100 39,100 0,61 0,39" fill="${f}"${SHAPE_STROKE(s, sw)}/>`,
   speechBubble: (f, s, sw) => `<polygon points="6,0 94,0 100,6 100,70 52,70 42,88 36,70 0,70 0,6" fill="${f}"${SHAPE_STROKE(s, sw)}/>`,
   thoughtBubble: (f, s, sw) => {
     const o = SHAPE_STROKE(s, sw);
@@ -156,7 +171,7 @@ function renderShapeContent(layer: Layer, scaleFactor: number) {
     <div className="w-full h-full" style={{ position: 'relative', pointerEvents: 'none' }}>
       <svg
         viewBox="0 0 100 100"
-        preserveAspectRatio="none"
+        preserveAspectRatio={getShapePreserveAspect(shape)}
         className="w-full h-full absolute inset-0"
         style={{ opacity: (layer.backgroundOpacity ?? 100) / 100 }}
         dangerouslySetInnerHTML={{
