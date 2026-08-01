@@ -154,6 +154,12 @@ export interface LayerAnimation {
   outDelay: number;
   hoverEffect?: 'scale' | 'lift' | 'glow' | 'tilt' | 'none';
   parallaxDepth?: number;
+  /** Custom user-drawn motion path — the layer loops along this polyline. */
+  motionPath?: {
+    points: { x: number; y: number }[];
+    /** Seconds per full loop (defaults to inDuration). */
+    duration?: number;
+  };
 }
 
 export interface Layer {

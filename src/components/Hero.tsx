@@ -21,8 +21,8 @@ const SHAPE_CLIP_PATHS: Record<string, string> = {
   pentagon: 'polygon(50% 0%, 100% 38%, 82% 100%, 18% 100%, 0% 38%)',
   hexagon: 'polygon(25% 5%, 75% 5%, 100% 50%, 75% 95%, 25% 95%, 0% 50%)',
   octagon: 'polygon(30% 0%, 70% 0%, 100% 30%, 100% 70%, 70% 100%, 30% 100%, 0% 70%, 0% 30%)',
-  star: 'polygon(50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%)',
-  heart: 'polygon(50% 30%, 61% 12%, 75% 8%, 100% 13%, 100% 40%, 91% 56%, 50% 100%, 9% 56%, 0% 40%, 0% 13%, 25% 8%, 39% 12%)',
+  star: 'polygon(50% 0%, 63% 38%, 100% 38%, 69% 61%, 81% 100%, 50% 75%, 19% 100%, 31% 61%, 0% 38%, 37% 38%)',
+  heart: 'polygon(50% 30%, 61% 12%, 75% 8%, 92% 14%, 100% 30%, 97% 48%, 87% 63%, 50% 100%, 13% 63%, 3% 48%, 0% 30%, 8% 14%, 25% 8%, 39% 12%)',
   parallelogram: 'polygon(25% 0%, 100% 0%, 75% 100%, 0% 100%)',
   trapezoid: 'polygon(20% 0%, 80% 0%, 100% 100%, 0% 100%)',
   cross: 'polygon(20% 0%, 80% 0%, 80% 20%, 100% 20%, 100% 80%, 80% 80%, 80% 100%, 20% 100%, 20% 80%, 0% 80%, 0% 20%, 20% 20%)',
@@ -32,21 +32,112 @@ const SHAPE_CLIP_PATHS: Record<string, string> = {
   arrowDown: 'polygon(20% 0%, 80% 0%, 80% 60%, 100% 60%, 50% 100%, 0% 60%, 20% 60%)',
   semicircle: 'circle(50% at 50% 0%)',
   quarterCircle: 'circle(50% at 100% 100%)',
-  burst: 'polygon(50% 0%, 57% 25%, 84% 7%, 77% 33%, 100% 50%, 77% 67%, 84% 93%, 57% 75%, 50% 100%, 43% 75%, 16% 93%, 23% 67%, 0% 50%, 23% 33%, 16% 7%, 43% 25%)',
+  burst: 'polygon(50% 0%, 59.3% 21.5%, 79.4% 9.5%, 74.3% 32.4%, 97.6% 34.5%, 80% 50%, 97.6% 65.5%, 74.3% 67.6%, 79.4% 90.5%, 59.3% 78.5%, 50% 100%, 40.7% 78.5%, 20.6% 90.5%, 25.7% 67.6%, 2.4% 65.5%, 20% 50%, 2.4% 34.5%, 25.7% 32.4%, 20.6% 9.5%, 40.7% 21.5%)',
   blob: 'polygon(15% 20%, 30% 5%, 55% 0%, 80% 10%, 100% 30%, 95% 60%, 85% 85%, 60% 100%, 35% 95%, 10% 80%, 0% 55%, 5% 30%)',
   chevronRight: 'polygon(75% 0%, 100% 50%, 75% 100%, 0% 100%, 25% 50%, 0% 0%)',
   chevronLeft: 'polygon(25% 0%, 100% 0%, 75% 50%, 100% 100%, 25% 100%, 0% 50%)',
   chevronUp: 'polygon(0% 75%, 50% 0%, 100% 75%, 75% 75%, 50% 25%, 25% 75%)',
-  chevronDown: 'polygon(0% 25%, 25% 25%, 50% 75%, 75% 25%, 50% 100%)',
+  chevronDown: 'polygon(0% 25%, 25% 25%, 50% 75%, 75% 25%, 100% 25%, 50% 100%)',
+  cloud: 'polygon(22% 78%, 8% 78%, 4% 64%, 12% 56%, 8% 42%, 20% 30%, 34% 28%, 42% 16%, 58% 16%, 66% 28%, 80% 26%, 94% 36%, 100% 52%, 94% 62%, 100% 70%, 88% 78%)',
+  lightningBolt: 'polygon(52% 0%, 8% 58%, 40% 58%, 30% 100%, 92% 38%, 58% 38%)',
+  plus: 'polygon(38% 0%, 62% 0%, 62% 38%, 100% 38%, 100% 62%, 62% 62%, 62% 100%, 38% 100%, 38% 62%, 0% 62%, 0% 38%, 38% 38%)',
+  minus: 'polygon(0% 42%, 100% 42%, 100% 58%, 0% 58%)',
+  multiply: 'polygon(39% 0%, 61% 0%, 100% 39%, 100% 61%, 61% 100%, 39% 100%, 0% 61%, 0% 39%)',
+  speechBubble: 'polygon(6% 0%, 94% 0%, 100% 6%, 100% 70%, 52% 70%, 42% 88%, 36% 70%, 0% 70%, 0% 6%)',
+  thoughtBubble: 'circle(50% 45% at 56% 40%)',
+  smiley: 'circle(46% at 50% 50%)',
+  notAllowed: 'circle(46% at 50% 50%)',
+  divide: 'circle(11% at 50% 26%)',
+  equals: 'inset(30% 0% 30% 0%)',
 };
 
-/** Render a clipped geometric shape with fill + double-clip outline. */
+/** Inline-SVG templates for shapes that need holes / internal details.
+ *  Function receives (fill, stroke, strokeWidth) and returns SVG markup.
+ *  Mirrors the editor's constants/shapes.ts. */
+const SHAPE_SVG_TEMPLATES: Record<string, (fill: string, stroke: string, strokeWidth: number) => string> = {
+  smiley: (f, s, sw) => {
+    const d = s !== 'transparent' ? s : '#1e293b';
+    return (
+      `<circle cx="50" cy="50" r="46" fill="${f}"${sw > 0 ? ` stroke="${s}" stroke-width="${sw}"` : ''}/>` +
+      `<circle cx="30" cy="38" r="6.5" fill="${d}"/>` +
+      `<circle cx="70" cy="38" r="6.5" fill="${d}"/>` +
+      `<path d="M26 62 Q50 84 74 62" fill="none" stroke="${d}" stroke-width="7" stroke-linecap="round"/>`
+    );
+  },
+  notAllowed: (f, s, sw) => {
+    const bar = s !== 'transparent' ? s : 'rgba(255,255,255,0.95)';
+    return (
+      `<circle cx="50" cy="50" r="46" fill="${f}"${sw > 0 ? ` stroke="${s}" stroke-width="${sw}"` : ''}/>` +
+      `<path d="M29.8 24.2 L75.8 70.2 L70.2 75.8 L24.2 29.8 Z" fill="${bar}"/>`
+    );
+  },
+  thoughtBubble: (f, s, sw) => {
+    const o = sw > 0 ? ` stroke="${s}" stroke-width="${sw}"` : '';
+    return (
+      `<circle cx="55" cy="42" r="34" fill="${f}"${o}/>` +
+      `<circle cx="14" cy="82" r="5" fill="${f}"/>` +
+      `<circle cx="27" cy="86" r="8" fill="${f}"/>` +
+      `<circle cx="41" cy="86" r="11" fill="${f}"/>`
+    );
+  },
+  divide: (f, s, sw) => {
+    const o = sw > 0 ? ` stroke="${s}" stroke-width="${sw}"` : '';
+    return (
+      `<circle cx="50" cy="26" r="12" fill="${f}"${o}/>` +
+      `<rect x="14" y="44" width="72" height="14" rx="7" fill="${f}"${o}/>`
+    );
+  },
+  equals: (f, s, sw) => {
+    const o = sw > 0 ? ` stroke="${s}" stroke-width="${sw}"` : '';
+    return (
+      `<rect x="14" y="28" width="72" height="14" rx="7" fill="${f}"${o}/>` +
+      `<rect x="14" y="58" width="72" height="14" rx="7" fill="${f}"${o}/>`
+    );
+  },
+};
+
+const SHAPE_SVG_TYPES = new Set(['smiley', 'notAllowed', 'thoughtBubble', 'divide', 'equals']);
+
+/** Flat fill for SVG shapes: solid color, else first gradient stop. */
+function shapeFlatFill(layer: Layer): string {
+  if (layer.backgroundColor) return layer.backgroundColor;
+  if (layer.backgroundGradient) {
+    const m = layer.backgroundGradient.match(/#[0-9a-fA-F]{3,8}/g);
+    if (m && m.length) return m[0];
+  }
+  return '#38bdf8';
+}
+
+/** Render a clipped geometric shape with fill + double-clip outline.
+ *  Shapes with holes/internal details (smiley, notAllowed, ...) use an
+ *  inline SVG template instead of a clip-path. */
 function renderShapeContent(layer: Layer, scaleFactor: number) {
   const shape = layer.shape || 'circle';
-  const clip = SHAPE_CLIP_PATHS[shape] || SHAPE_CLIP_PATHS.circle;
   const bw = Math.max(0, (layer.borderWidth ?? 0) * scaleFactor);
   const borderColor =
     layer.borderColor && layer.borderColor !== 'transparent' ? layer.borderColor : null;
+
+  if (SHAPE_SVG_TYPES.has(shape) && SHAPE_SVG_TEMPLATES[shape]) {
+    return (
+      <div className="w-full h-full" style={{ position: 'relative', pointerEvents: 'none' }}>
+        <svg
+          viewBox="0 0 100 100"
+          preserveAspectRatio="none"
+          className="w-full h-full absolute inset-0"
+          style={{ opacity: (layer.backgroundOpacity ?? 100) / 100 }}
+          dangerouslySetInnerHTML={{
+            __html: SHAPE_SVG_TEMPLATES[shape](
+              shapeFlatFill(layer),
+              borderColor ?? 'transparent',
+              Math.max(0, layer.borderWidth ?? 0)
+            ),
+          }}
+        />
+      </div>
+    );
+  }
+
+  const clip = SHAPE_CLIP_PATHS[shape] || SHAPE_CLIP_PATHS.circle;
   const fill = layer.backgroundGradient || layer.backgroundColor || 'transparent';
   return (
     <div
@@ -507,6 +598,20 @@ export default function Hero({ onNavigate }: HeroProps) {
               const layerH = isFullBleed ? '100%' : `${layer.height * scaleFactor}px`;
               const layerFontSize = layer.fontSize * scaleFactor;
 
+              // Custom motion path — the layer loops along a user-drawn polyline.
+              // Chrome anchors offset-path at the element's OWN position, and the
+              // wrapper sits at the layer's left/top, so the scaled layer-relative
+              // points are used as-is (no +layerX/+layerY).
+              const motionPath = layer.animation.motionPath;
+              const pathPts =
+                motionPath?.points && motionPath.points.length >= 2
+                  ? motionPath.points.map(p => ({ x: p.x * scaleFactor, y: p.y * scaleFactor }))
+                  : null;
+              const pathString = pathPts
+                ? `M ${pathPts[0].x} ${pathPts[0].y} ` + pathPts.slice(1).map(p => `L ${p.x} ${p.y}`).join(' ')
+                : null;
+              const pathDuration = Math.max(0.1, motionPath?.duration ?? (layer.animation.inDuration || 0.8));
+
               // Animation variants
               const getInitial = () => {
                 const base = { rotate: layer.rotation };
@@ -594,6 +699,18 @@ export default function Hero({ onNavigate }: HeroProps) {
                   }}
                   className=""
                 >
+                  {/* Motion path wrapper — loops the layer along the drawn path */}
+                  <motion.div
+                    style={{
+                      width: '100%',
+                      height: '100%',
+                      offsetPath: pathString ? `path('${pathString}')` : undefined,
+                      offsetAnchor: '0% 0%',
+                    }}
+                    initial={pathString ? { offsetDistance: '0%' } : false}
+                    animate={pathString ? { offsetDistance: '100%' } : undefined}
+                    transition={pathString ? { duration: pathDuration, ease: 'linear', repeat: Infinity } : undefined}
+                  >
                   {/* Parallax inner */}
                   <div style={{
                     width: '100%',
@@ -662,6 +779,7 @@ export default function Hero({ onNavigate }: HeroProps) {
                     )}
                   </div>
                   </div>{/* end parallax */}
+                  </motion.div>{/* end motion path wrapper */}
                 </motion.div>
               );
             })}
