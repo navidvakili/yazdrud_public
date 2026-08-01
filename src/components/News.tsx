@@ -22,7 +22,7 @@ export default function News({ fontSizeScale, onNavigate }: NewsProps) {
     setLoading(true);
     setError(null);
     try {
-      const res = await API<{ data: NewsItem[] }>('news?per_page=7');
+      const res = await API<{ data: NewsItem[] }>('news?per_page=7&lang=fa');
       setNewsList(res.data || []);
     } catch (err: any) {
       setError(err.message || 'خطا در بارگذاری اخبار');

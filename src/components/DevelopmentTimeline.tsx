@@ -75,7 +75,7 @@ export default function DevelopmentTimeline({ fontSizeScale }: DevelopmentTimeli
 
     async function fetchData() {
       try {
-        const result = await API<{ success: boolean; data: TimelineItem[] }>('development-timeline');
+        const result = await API<{ success: boolean; data: TimelineItem[] }>('development-timeline?lang=fa');
         if (!cancelled && result.success) {
           setItems(result.data);
         }

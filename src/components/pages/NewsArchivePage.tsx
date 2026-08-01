@@ -90,7 +90,7 @@ export default function NewsArchivePage({ fontSizeScale, onNavigate, selectedNew
   const loadNews = async () => {
     setLoading(true);
     try {
-      const res = await API<{ data: NewsItem[]; total: number }>('news?per_page=500&page=1');
+      const res = await API<{ data: NewsItem[]; total: number }>('news?per_page=500&page=1&lang=fa');
       setNewsList(res.data || []);
       setTotalNews(res.total ?? 0);
       setCurrentPage(1);
