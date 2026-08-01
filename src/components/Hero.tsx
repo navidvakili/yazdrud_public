@@ -51,17 +51,18 @@ function renderShapeContent(layer: Layer, scaleFactor: number) {
   return (
     <div
       className="w-full h-full"
-      style={{ position: 'relative', clipPath: clip, pointerEvents: 'none' }}
+      style={{ position: 'relative', pointerEvents: 'none' }}
     >
       {bw > 0 && borderColor && (
-        <div style={{ position: 'absolute', inset: -bw, background: borderColor, clipPath: clip }} />
+        <div style={{ position: 'absolute', inset: 0, background: borderColor, clipPath: clip }} />
       )}
       <div
         style={{
           position: 'absolute',
-          inset: 0,
+          inset: bw,
           background: fill,
           opacity: (layer.backgroundOpacity ?? 100) / 100,
+          clipPath: clip,
         }}
       />
     </div>
