@@ -1,11 +1,71 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { fetchSliderStudioProject } from '../api';
-import type { SliderProject, Slide } from '../types';
+import type { Layer, SliderProject, Slide } from '../types';
 import ParticleCanvas from './ParticleCanvas';
 
 interface HeroProps {
   onNavigate: (section: string) => void;
+}
+
+// ── Shape Rendering Helpers ────────────────────────────────────────
+
+/** CSS clip-path for each shape preset (mirrors the editor's
+ *  src/apps/slider-studio/constants/shapes.ts). */
+const SHAPE_CLIP_PATHS: Record<string, string> = {
+  rectangle: 'inset(0% 0% 0% 0%)',
+  circle: 'circle(50% at 50% 50%)',
+  ellipse: 'ellipse(50% 35% at 50% 50%)',
+  triangle: 'polygon(50% 0%, 0% 100%, 100% 100%)',
+  diamond: 'polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%)',
+  pentagon: 'polygon(50% 0%, 100% 38%, 82% 100%, 18% 100%, 0% 38%)',
+  hexagon: 'polygon(25% 5%, 75% 5%, 100% 50%, 75% 95%, 25% 95%, 0% 50%)',
+  octagon: 'polygon(30% 0%, 70% 0%, 100% 30%, 100% 70%, 70% 100%, 30% 100%, 0% 70%, 0% 30%)',
+  star: 'polygon(50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%)',
+  heart: 'polygon(50% 30%, 61% 12%, 75% 8%, 100% 13%, 100% 40%, 91% 56%, 50% 100%, 9% 56%, 0% 40%, 0% 13%, 25% 8%, 39% 12%)',
+  parallelogram: 'polygon(25% 0%, 100% 0%, 75% 100%, 0% 100%)',
+  trapezoid: 'polygon(20% 0%, 80% 0%, 100% 100%, 0% 100%)',
+  cross: 'polygon(20% 0%, 80% 0%, 80% 20%, 100% 20%, 100% 80%, 80% 80%, 80% 100%, 20% 100%, 20% 80%, 0% 80%, 0% 20%, 20% 20%)',
+  arrowRight: 'polygon(0% 20%, 60% 20%, 60% 0%, 100% 50%, 60% 100%, 60% 80%, 0% 80%)',
+  arrowLeft: 'polygon(40% 0%, 40% 20%, 100% 20%, 100% 80%, 40% 80%, 40% 100%, 0% 50%)',
+  arrowUp: 'polygon(20% 40%, 0% 40%, 50% 0%, 100% 40%, 80% 40%, 80% 100%, 20% 100%)',
+  arrowDown: 'polygon(20% 0%, 80% 0%, 80% 60%, 100% 60%, 50% 100%, 0% 60%, 20% 60%)',
+  semicircle: 'circle(50% at 50% 0%)',
+  quarterCircle: 'circle(50% at 100% 100%)',
+  burst: 'polygon(50% 0%, 57% 25%, 84% 7%, 77% 33%, 100% 50%, 77% 67%, 84% 93%, 57% 75%, 50% 100%, 43% 75%, 16% 93%, 23% 67%, 0% 50%, 23% 33%, 16% 7%, 43% 25%)',
+  blob: 'polygon(15% 20%, 30% 5%, 55% 0%, 80% 10%, 100% 30%, 95% 60%, 85% 85%, 60% 100%, 35% 95%, 10% 80%, 0% 55%, 5% 30%)',
+  chevronRight: 'polygon(75% 0%, 100% 50%, 75% 100%, 0% 100%, 25% 50%, 0% 0%)',
+  chevronLeft: 'polygon(25% 0%, 100% 0%, 75% 50%, 100% 100%, 25% 100%, 0% 50%)',
+  chevronUp: 'polygon(0% 75%, 50% 0%, 100% 75%, 75% 75%, 50% 25%, 25% 75%)',
+  chevronDown: 'polygon(0% 25%, 25% 25%, 50% 75%, 75% 25%, 50% 100%)',
+};
+
+/** Render a clipped geometric shape with fill + double-clip outline. */
+function renderShapeContent(layer: Layer, scaleFactor: number) {
+  const shape = layer.shape || 'circle';
+  const clip = SHAPE_CLIP_PATHS[shape] || SHAPE_CLIP_PATHS.circle;
+  const bw = Math.max(0, (layer.borderWidth ?? 0) * scaleFactor);
+  const borderColor =
+    layer.borderColor && layer.borderColor !== 'transparent' ? layer.borderColor : null;
+  const fill = layer.backgroundGradient || layer.backgroundColor || 'transparent';
+  return (
+    <div
+      className="w-full h-full"
+      style={{ position: 'relative', clipPath: clip, pointerEvents: 'none' }}
+    >
+      {bw > 0 && borderColor && (
+        <div style={{ position: 'absolute', inset: -bw, background: borderColor, clipPath: clip }} />
+      )}
+      <div
+        style={{
+          position: 'absolute',
+          inset: 0,
+          background: fill,
+          opacity: (layer.backgroundOpacity ?? 100) / 100,
+        }}
+      />
+    </div>
+  );
 }
 
 // ── Text Animation Helpers ─────────────────────────────────────────
@@ -520,9 +580,11 @@ export default function Hero({ onNavigate }: HeroProps) {
                     fontWeight: layer.fontWeight,
                     color: layer.color,
                     borderRadius: `${layer.borderRadius * scaleFactor}px`,
-                    borderWidth: layer.borderWidth ? `${layer.borderWidth}px` : undefined,
-                    borderColor: layer.borderColor || undefined,
-                    borderStyle: layer.borderWidth ? 'solid' : undefined,
+                    // Shapes draw their own outline inside the content (a CSS border
+                    // here would stay rectangular and be clipped away by the polygon).
+                    borderWidth: layer.type === 'shape' ? undefined : (layer.borderWidth ? `${layer.borderWidth}px` : undefined),
+                    borderColor: layer.type === 'shape' ? undefined : (layer.borderColor || undefined),
+                    borderStyle: layer.type === 'shape' ? undefined : (layer.borderWidth ? 'solid' : undefined),
                     padding: layer.padding && layer.padding !== '0px' ? scalePxValues(layer.padding, scaleFactor) : undefined,
                     zIndex: layer.zIndex,
                     boxShadow: layer.shadow !== 'none' ? layer.shadow : undefined,
@@ -540,8 +602,9 @@ export default function Hero({ onNavigate }: HeroProps) {
                       transition: 'transform 0.15s ease-out',
                     } : {}),
                   }}>
-                  {/* Layer Background */}
-                  {(layer.backgroundColor !== 'transparent' || layer.backgroundGradient) && (
+                  {/* Layer Background — for shapes the fill lives inside the shape
+                      content (it must be clipped by the shape geometry) */}
+                  {(layer.type !== 'shape' && (layer.backgroundColor !== 'transparent' || layer.backgroundGradient)) && (
                     <div
                       style={{
                         position: 'absolute',
@@ -555,7 +618,9 @@ export default function Hero({ onNavigate }: HeroProps) {
                   )}
                   {/* Layer Content */}
                   <div className="w-full h-full flex items-center justify-center relative z-[1]">
-                    {layer.type === 'image' ? (
+                    {layer.type === 'shape' ? (
+                      renderShapeContent(layer, scaleFactor)
+                    ) : layer.type === 'image' ? (
                       <img
                         src={layer.content}
                         alt={layer.name}

@@ -160,6 +160,7 @@ export interface Layer {
   id: string;
   name: string;
   type: 'text' | 'image' | 'button' | 'video' | 'svg' | 'shape' | 'group' | 'customHtml';
+  shape?: string;
   x: number;
   y: number;
   width: number;
