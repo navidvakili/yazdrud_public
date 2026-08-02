@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { API, decodeHtmlEntities, decodeAndStripHtml } from '../shared-utils';
 import { NewsItem } from '../types';
 
@@ -8,24 +9,26 @@ interface NewsProps {
 }
 
 export default function News({ fontSizeScale, onNavigate }: NewsProps) {
+  const { t, i18n } = useTranslation();
   const [newsList, setNewsList] = useState<NewsItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [activeCategoryFilter, setActiveCategoryFilter] = useState<string>('همه');
+  const [activeCategoryFilter, setActiveCategoryFilter] = useState<string>(t('yazdrud.news.all'));
   const [newsSearch, setNewsSearch] = useState('');
 
   useEffect(() => {
     loadNews();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [i18n.language]);
 
   const loadNews = async () => {
     setLoading(true);
     setError(null);
     try {
-      const res = await API<{ data: NewsItem[] }>('news?per_page=7&lang=fa');
+      const res = await API<{ data: NewsItem[] }>(`news?per_page=7&lang=${i18n.language}`);
       setNewsList(res.data || []);
     } catch (err: any) {
-      setError(err.message || 'خطا در بارگذاری اخبار');
+      setError(err.message || t('yazdrud.news.error'));
     } finally {
       setLoading(false);
     }
@@ -37,8 +40,8 @@ export default function News({ fontSizeScale, onNavigate }: NewsProps) {
     newsList.forEach(n => {
       if (n.category_name) cats.add(n.category_name);
     });
-    return ['همه', ...Array.from(cats)];
-  }, [newsList]);
+    return [t('yazdrud.news.all'), ...Array.from(cats)];
+  }, [newsList, t]);
 
   // Format date to Persian readable
   const formatDate = (iso: string | null): string => {
@@ -55,7 +58,7 @@ export default function News({ fontSizeScale, onNavigate }: NewsProps) {
   };
 
   const filteredNews = newsList.filter(news => {
-    const matchesCategory = activeCategoryFilter === 'همه' || news.category_name === activeCategoryFilter;
+    const matchesCategory = activeCategoryFilter === t('yazdrud.news.all') || news.category_name === activeCategoryFilter;
     const matchesSearch = !newsSearch
       || news.title.includes(newsSearch)
       || (news.summary && news.summary.includes(newsSearch));
@@ -71,11 +74,11 @@ export default function News({ fontSizeScale, onNavigate }: NewsProps) {
       {/* Title */}
       <div className="text-center mb-10">
         <span className="text-[#B76E4C] font-bold text-sm tracking-wider block mb-2">
-          📰 رویدادها و تصمیمات کلیدی
+          {t('yazdrud.news.badge')}
         </span>
-        <h3 className="text-3xl font-black text-[#1F3A5F]">آخرین اخبار و اطلاعیه‌ها</h3>
+        <h3 className="text-3xl font-black text-[#1F3A5F]">{t('yazdrud.news.title')}</h3>
         <p className="text-gray-600 text-sm font-semibold mt-2 max-w-md mx-auto">
-          جدیدترین اخبار مسکن ملی، افتتاح کلان پروژه‌های راه و بهسازی بافت تاریخی شهرهای یزد
+          {t('yazdrud.news.subtitle')}
         </p>
         <div className="w-16 h-1 bg-[#B76E4C] mx-auto mt-3 rounded"></div>
       </div>
@@ -103,7 +106,7 @@ export default function News({ fontSizeScale, onNavigate }: NewsProps) {
         <div className="relative w-full md:w-80">
           <input
             type="text"
-            placeholder="جستجو در آرشیو اخبار..."
+            placeholder={t('yazdrud.news.searchPlaceholder')}
             value={newsSearch}
             onChange={(e) => setNewsSearch(e.target.value)}
             className="w-full bg-white/70 border border-white/45 rounded-lg pr-9 pl-4 py-2 text-xs focus:ring-2 focus:ring-[#2A9D8F] focus:outline-none focus:bg-white transition-all"
@@ -117,7 +120,7 @@ export default function News({ fontSizeScale, onNavigate }: NewsProps) {
         <div className="flex items-center justify-center py-16">
           <div className="flex flex-col items-center gap-3">
             <div className="w-10 h-10 border-4 border-[#1F3A5F]/20 border-t-[#1F3A5F] rounded-full animate-spin" />
-            <span className="text-sm text-gray-500 font-semibold">در حال بارگذاری اخبار...</span>
+            <span className="text-sm text-gray-500 font-semibold">{t('yazdrud.news.loading')}</span>
           </div>
         </div>
       )}
@@ -127,13 +130,13 @@ export default function News({ fontSizeScale, onNavigate }: NewsProps) {
         <div className="text-center py-16 px-4">
           <div className="bg-red-50 border border-red-200 rounded-2xl p-8 max-w-md mx-auto">
             <i className="fa-solid fa-circle-exclamation text-red-400 text-3xl mb-3"></i>
-            <p className="text-red-700 text-sm font-bold mb-2">خطا در دریافت اطلاعات</p>
+            <p className="text-red-700 text-sm font-bold mb-2">{t('yazdrud.news.error')}</p>
             <p className="text-red-500 text-xs mb-4">{error}</p>
             <button
               onClick={loadNews}
               className="px-5 py-2 bg-red-500 text-white text-xs font-bold rounded-xl hover:bg-red-600 transition-colors cursor-pointer"
             >
-              تلاش مجدد
+              {t('yazdrud.news.retry')}
             </button>
           </div>
         </div>
@@ -165,16 +168,16 @@ export default function News({ fontSizeScale, onNavigate }: NewsProps) {
                   </div>
                 )}
                 <span className="absolute top-3 right-3 bg-[#B76E4C] text-white text-[10px] font-bold px-3 py-1 rounded-full shadow">
-                  {filteredNews[0].category_name || 'عمومی'}
+                  {filteredNews[0].category_name || t('yazdrud.news.general')}
                 </span>
                 <span className="absolute top-3 left-3 bg-[#2A9D8F] text-white text-[10px] font-bold px-3 py-1 rounded-full shadow flex items-center gap-1">
                   <i className="fa-solid fa-star"></i>
-                  <span>خبر ویژه</span>
+                  <span>{t('yazdrud.news.featured')}</span>
                 </span>
                 {filteredNews[0].is_photo_report && (
                   <span className="absolute bottom-3 left-3 bg-indigo-600/90 text-white text-[10px] font-bold px-3 py-1 rounded-full shadow flex items-center gap-1 backdrop-blur-sm">
                     <i className="fa-solid fa-images"></i>
-                    <span>گزارش تصویری</span>
+                    <span>{t('yazdrud.news.photoReport')}</span>
                   </span>
                 )}
               </div>
@@ -188,7 +191,7 @@ export default function News({ fontSizeScale, onNavigate }: NewsProps) {
                   </span>
                   <span className="flex items-center gap-1">
                     <i className="fa-solid fa-eye text-[#2A9D8F]"></i>
-                    <span>{filteredNews[0].views_count.toLocaleString('fa-IR')} بازدید</span>
+                    <span>{filteredNews[0].views_count.toLocaleString('fa-IR')} {t('yazdrud.news.views')}</span>
                   </span>
                 </div>
 
@@ -201,7 +204,7 @@ export default function News({ fontSizeScale, onNavigate }: NewsProps) {
                 </p>
 
                 <div className="flex items-center gap-2 text-sm font-bold text-[#2A9D8F] group-hover:text-[#B76E4C] transition-colors">
-                  <span>مطالعه کامل خبر</span>
+                  <span>{t('yazdrud.news.readMore')}</span>
                   <i className="fa-solid fa-arrow-left-long group-hover:-translate-x-1 transition-transform"></i>
                 </div>
               </div>
@@ -237,12 +240,12 @@ export default function News({ fontSizeScale, onNavigate }: NewsProps) {
                       className="absolute top-3 right-3 text-white text-[10px] font-bold px-2.5 py-1 rounded-full shadow"
                       style={{ backgroundColor: news.category_color || '#B76E4C' }}
                     >
-                      {news.category_name || 'عمومی'}
+                      {news.category_name || t('yazdrud.news.general')}
                     </span>
                     {news.is_photo_report && (
                       <span className="absolute bottom-3 left-3 bg-indigo-600/90 text-white text-[10px] font-bold px-2.5 py-1 rounded-full shadow flex items-center gap-1 backdrop-blur-sm">
                         <i className="fa-solid fa-images"></i>
-                        <span>گزارش تصویری</span>
+                        <span>{t('yazdrud.news.photoReport')}</span>
                       </span>
                     )}
                   </div>
@@ -256,7 +259,7 @@ export default function News({ fontSizeScale, onNavigate }: NewsProps) {
                       </span>
                       <span className="flex items-center gap-1">
                         <i className="fa-solid fa-eye text-[#2A9D8F]"></i>
-                        <span>{news.views_count.toLocaleString('fa-IR')} بازدید</span>
+                        <span>{news.views_count.toLocaleString('fa-IR')} {t('yazdrud.news.views')}</span>
                       </span>
                     </div>
 
@@ -272,7 +275,7 @@ export default function News({ fontSizeScale, onNavigate }: NewsProps) {
 
                 {/* Read More Footer */}
                 <div className="p-5 pt-0 border-t border-gray-50 flex items-center justify-between text-xs font-bold text-[#1F3A5F] group-hover:text-[#2A9D8F] transition-colors">
-                  <span>مطالعه کامل خبر</span>
+                  <span>{t('yazdrud.news.readMore')}</span>
                   <i className="fa-solid fa-arrow-left-long group-hover:-translate-x-1 transition-transform"></i>
                 </div>
               </article>
@@ -281,7 +284,7 @@ export default function News({ fontSizeScale, onNavigate }: NewsProps) {
 
           {filteredNews.length === 0 && (
             <div className="text-center py-12 text-gray-500 text-sm font-semibold">
-              هیچ خبری منطبق با جستجو یا دسته انتخابی شما یافت نشد.
+              {t('yazdrud.news.noResults')}
             </div>
           )}
         </div>
@@ -294,13 +297,13 @@ export default function News({ fontSizeScale, onNavigate }: NewsProps) {
             if (onNavigate) {
               onNavigate('news');
             } else {
-              alert('شما در حال حاضر به آخرین آرشیو سال ۱۴۰۵ اداره کل یزد دسترسی دارید.');
+              alert(t('yazdrud.news.archiveAlert'));
             }
           }}
           className="px-6 py-3 rounded-lg border-2 border-[#1F3A5F] text-[#1F3A5F] hover:bg-[#1F3A5F] hover:text-white font-bold text-xs md:text-sm active:scale-95 transition-all flex items-center justify-center gap-1.5 mx-auto cursor-pointer"
         >
           <i className="fa-solid fa-folder-open text-[#2A9D8F]"></i>
-          <span>مشاهده آرشیو جامع اخبار و اطلاعیه‌ها</span>
+          <span>{t('yazdrud.news.viewArchive')}</span>
         </button>
       </div>
     </section>

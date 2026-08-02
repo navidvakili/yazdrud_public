@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
+import { useTranslation } from 'react-i18next';
+import i18n from '../i18n';
 
 interface HeaderProps {
   fontSizeScale: number;
@@ -16,6 +18,7 @@ export default function Header({
   setIsHighContrast,
   onNavigate,
 }: HeaderProps) {
+  const { t } = useTranslation();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearchOpen, setIsSearchOpen] = useState(false);
@@ -33,15 +36,27 @@ export default function Header({
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
+  useEffect(() => {
+    const updateLanguage = (languageId: string) => {
+      document.documentElement.lang = languageId;
+      document.documentElement.dir = i18n.dir(languageId);
+    };
+    updateLanguage(i18n.language || 'fa');
+    i18n.on('languageChanged', updateLanguage);
+    return () => {
+      i18n.off('languageChanged', updateLanguage);
+    };
+  }, []);
+
   const menuItems = [
-    { label: 'صفحه اصلی', id: 'home' },
-    { label: 'خدمات الکترونیک', id: 'services' },
-    { label: 'تخصیص اراضی و مسکن', id: 'land-allocation' },
-    { label: 'شهرسازی و معماری', id: 'urban-planning' },
-    { label: 'راه و حمل‌و‌نقل', id: 'roads-transport' },
-    { label: 'آرشیو اخبار', id: 'news' },
-    { label: 'نقشه پروژه‌ها', id: 'interactive-map' },
-    { label: 'ارتباط با ما', id: 'footer' },
+    { label: t('yazdrud.header.menuHome'), id: 'home' },
+    { label: t('yazdrud.header.menuServices'), id: 'services' },
+    { label: t('yazdrud.header.menuLandAllocation'), id: 'land-allocation' },
+    { label: t('yazdrud.header.menuUrbanPlanning'), id: 'urban-planning' },
+    { label: t('yazdrud.header.menuRoadsTransport'), id: 'roads-transport' },
+    { label: t('yazdrud.header.menuNews'), id: 'news' },
+    { label: t('yazdrud.header.menuMap'), id: 'interactive-map' },
+    { label: t('yazdrud.header.menuContact'), id: 'footer' },
   ];
 
   const toggleHighContrast = () => {
@@ -87,11 +102,11 @@ export default function Header({
           </span>
           <span className="hidden sm:inline-flex items-center gap-1 opacity-90">
             <i className="fa-solid fa-clock text-[#2A9D8F]"></i>
-            <span>ساعت کاری: ۷:۳۰ الی ۱۴:۳۰</span>
+            <span>{t('yazdrud.header.workingHours')}</span>
           </span>
           <span className="hidden md:inline-flex items-center gap-1 opacity-90">
             <i className="fa-solid fa-map-location-dot text-[#2A9D8F]"></i>
-            <span>یزد، خیابان مسکن و شهرسازی</span>
+            <span>{t('yazdrud.header.address')}</span>
           </span>
         </div>
 
@@ -126,22 +141,22 @@ export default function Header({
                 ? 'bg-[#2A9D8F] text-white border-transparent'
                 : 'bg-white/10 hover:bg-white/20 border-white/20'
             }`}
-            title="نسخه ویژه نابینایان و کم‌بینایان (کنتراست بالا)"
-            aria-label="نسخه نابینایان"
+            title={t('yazdrud.header.highContrast')}
+            aria-label={t('yazdrud.header.highContrast')}
           >
             <i className="fa-solid fa-eye-low-vision"></i>
-            <span className="hidden lg:inline">نسخه نابینایان (کنتراست بالا)</span>
+            <span className="hidden lg:inline">{t('yazdrud.header.highContrast')}</span>
           </button>
 
           {/* Search Button */}
           <button
             onClick={() => setIsSearchOpen(!isSearchOpen)}
             className="p-1 px-2.5 rounded bg-white/10 hover:bg-white/20 transition-all text-xs border border-white/20 flex items-center gap-1"
-            title="جستجو در سایت"
-            aria-label="جستجو در سایت"
+            title={t('yazdrud.header.search')}
+            aria-label={t('yazdrud.header.search')}
           >
             <i className="fa-solid fa-magnifying-glass"></i>
-            <span className="hidden sm:inline">جستجو</span>
+            <span className="hidden sm:inline">{t('yazdrud.header.search')}</span>
           </button>
 
         </div>
@@ -164,10 +179,10 @@ export default function Header({
           </div>
           <div>
             <h1 className="text-sm md:text-base lg:text-lg font-black tracking-tight text-white group-hover:text-[#E7D3B1] transition-colors">
-              اداره کل راه و شهرسازی استان یزد
+              {t('yazdrud.header.orgName')}
             </h1>
             <p className="text-[10px] md:text-xs text-[#E7D3B1] font-bold">
-              درگاه هوشمند خدمات الکترونیک راه و مسکن
+              {t('yazdrud.header.tagline')}
             </p>
           </div>
         </button>
@@ -189,7 +204,7 @@ export default function Header({
         <button
           onClick={() => setIsMobileMenuOpen(true)}
           className="lg:hidden p-2 rounded-lg bg-black/10 hover:bg-black/20 transition-colors"
-          aria-label="باز کردن منو"
+          aria-label={t('yazdrud.header.openMenu')}
         >
           <i className="fa-solid fa-bars text-xl"></i>
         </button>
@@ -202,7 +217,7 @@ export default function Header({
             <form onSubmit={handleSearchSubmit} className="flex gap-2">
               <input
                 type="text"
-                placeholder="عبارت مورد نظر خود را برای جستجو بنویسید (مثال: فرم ج، مسکن ملی، کارشناسان)..."
+                placeholder={t('yazdrud.header.searchPlaceholder')}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="flex-1 bg-white text-gray-900 rounded-lg px-4 py-2 text-sm focus:ring-3 focus:ring-[#2A9D8F] focus:outline-none"
@@ -212,14 +227,14 @@ export default function Header({
                 type="submit"
                 className="bg-[#2A9D8F] hover:bg-[#2A9D8F]/90 text-white px-5 py-2 rounded-lg font-bold text-sm transition-colors"
               >
-                جستجو
+                {t('yazdrud.header.searchSubmit')}
               </button>
               <button
                 type="button"
                 onClick={() => setIsSearchOpen(false)}
                 className="bg-red-500 hover:bg-red-600 text-white px-3 py-2 rounded-lg text-sm transition-colors"
               >
-                انصراف
+                {t('yazdrud.header.cancel')}
               </button>
             </form>
           </div>
@@ -244,14 +259,14 @@ export default function Header({
                     />
                   </div>
                   <div>
-                    <h2 className="text-sm font-black text-white leading-tight">اداره کل راه و شهرسازی استان یزد</h2>
-                    <p className="text-[10px] text-[#E7D3B1] font-medium">پورتال خدمات هوشمند و توسعه محور</p>
+                    <h2 className="text-sm font-black text-white leading-tight">{t('yazdrud.header.orgName')}</h2>
+                    <p className="text-[10px] text-[#E7D3B1] font-medium">{t('yazdrud.header.mobileTagline')}</p>
                   </div>
                 </div>
                 <button
                   onClick={() => setIsMobileMenuOpen(false)}
                   className="w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors"
-                  aria-label="بستن منو"
+                  aria-label={t('yazdrud.header.closeMenu')}
                 >
                   <i className="fa-solid fa-xmark text-lg text-white"></i>
                 </button>

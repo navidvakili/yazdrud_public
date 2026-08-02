@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { ActivePage } from '../types';
 
 export interface BreadcrumbItem {
@@ -24,12 +25,13 @@ export default function Breadcrumb({
   items,
   onNavigate,
 }: BreadcrumbProps) {
+  const { t } = useTranslation();
   const [copied, setCopied] = useState(false);
 
   // Default dynamic hierarchy generation if items array is not explicitly provided
   const breadcrumbItems: BreadcrumbItem[] = items || [
     {
-      label: 'صفحه اصلی',
+      label: t('yazdrud.breadcrumb.home'),
       icon: 'fa-house',
       onClick: () => onNavigate('home'),
     },
@@ -65,7 +67,7 @@ export default function Breadcrumb({
       <div className="max-w-7xl mx-auto flex flex-col md:flex-row md:items-center justify-between gap-6 relative z-10">
         <div className="max-w-3xl space-y-2">
           {/* Dynamic Breadcrumb Navigation Trail */}
-          <nav aria-label="مسیر راهنما (Breadcrumb)">
+          <nav aria-label={t('yazdrud.breadcrumb.ariaLabel')}>
             <ol className="flex flex-wrap items-center gap-2 text-xs font-semibold text-gray-300">
               {breadcrumbItems.map((item, index) => {
                 const isLast = index === breadcrumbItems.length - 1;
@@ -79,7 +81,7 @@ export default function Breadcrumb({
                       <button
                         onClick={item.onClick}
                         className="hover:text-[#2A9D8F] text-gray-300 transition-colors flex items-center gap-1.5 cursor-pointer py-1 px-1.5 rounded-lg hover:bg-white/5"
-                        title={`بازگشت به ${item.label}`}
+                        title={t('yazdrud.breadcrumb.backTo', { label: item.label })}
                       >
                         {item.icon && <i className={`fa-solid ${item.icon} text-[11px]`}></i>}
                         <span className="line-clamp-1">{item.label}</span>
@@ -115,10 +117,10 @@ export default function Breadcrumb({
           <button
             onClick={handleCopyLink}
             className="px-3.5 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 text-white font-bold text-xs flex items-center gap-2 transition-all cursor-pointer shadow-sm active:scale-95"
-            title="اشتراک‌گذاری لینک صفحه"
+            title={t('yazdrud.breadcrumb.shareTitle')}
           >
             <i className={`fa-solid ${copied ? 'fa-check text-emerald-400' : 'fa-share-nodes'}`}></i>
-            <span className="hidden sm:inline">{copied ? 'لینک کپی شد' : 'اشتراک‌گذاری'}</span>
+            <span className="hidden sm:inline">{copied ? t('yazdrud.breadcrumb.copied') : t('yazdrud.breadcrumb.share')}</span>
           </button>
 
           <button
@@ -126,7 +128,7 @@ export default function Breadcrumb({
             className="px-4 py-2.5 rounded-xl bg-[#2A9D8F] hover:bg-[#2A9D8F]/90 text-white font-bold text-xs flex items-center gap-2 transition-all cursor-pointer shadow-md active:scale-95"
           >
             <i className="fa-solid fa-arrow-right"></i>
-            <span>صفحه اصلی</span>
+            <span>{t('yazdrud.breadcrumb.home')}</span>
           </button>
         </div>
       </div>

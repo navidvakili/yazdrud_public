@@ -5,6 +5,7 @@
 // ============================================================
 
 import { useEffect, useState, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { API } from '../shared-utils';
 
 interface TimelineItem {
@@ -65,6 +66,7 @@ const iconNameOnly = (icon: string | null): string => {
 };
 
 export default function DevelopmentTimeline({ fontSizeScale }: DevelopmentTimelineProps) {
+  const { t, i18n } = useTranslation();
   const [items, setItems] = useState<TimelineItem[]>([]);
   const [loading, setLoading] = useState(true);
   const sectionRef = useRef<HTMLElement>(null);
@@ -75,7 +77,7 @@ export default function DevelopmentTimeline({ fontSizeScale }: DevelopmentTimeli
 
     async function fetchData() {
       try {
-        const result = await API<{ success: boolean; data: TimelineItem[] }>('development-timeline?lang=fa');
+        const result = await API<{ success: boolean; data: TimelineItem[] }>(`development-timeline?lang=${i18n.language}`);
         if (!cancelled && result.success) {
           setItems(result.data);
         }
@@ -88,7 +90,7 @@ export default function DevelopmentTimeline({ fontSizeScale }: DevelopmentTimeli
 
     fetchData();
     return () => { cancelled = true; };
-  }, []);
+  }, [i18n.language]);
 
   // Intersection Observer for scroll-based animation
   useEffect(() => {
@@ -120,14 +122,13 @@ export default function DevelopmentTimeline({ fontSizeScale }: DevelopmentTimeli
       <div className="text-center mb-14">
         <div className="inline-flex items-center gap-2 bg-[#1F3A5F]/10 text-[#1F3A5F] px-4 py-1.5 rounded-full text-xs font-bold mb-4">
           <i className="fa-solid fa-road"></i>
-          <span>گام‌های توسعه</span>
+          <span>{t('yazdrud.timeline.badge')}</span>
         </div>
         <h2 className="text-3xl md:text-4xl font-black text-[#1F3A5F] mb-3">
-          روند توسعه و تحول عمران شهری و جاده‌ای یزد
+          {t('yazdrud.timeline.title')}
         </h2>
         <p className="text-sm text-gray-600 max-w-2xl mx-auto leading-relaxed font-semibold">
-          استان یزد با بهره‌گیری از توان مهندسان و متخصصان داخلی، گام‌های بلندی در مسیر توسعه
-          زیرساخت‌های عمرانی و حمل‌ونقل برداشته است.
+          {t('yazdrud.timeline.subtitle')}
         </p>
       </div>
 

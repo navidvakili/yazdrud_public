@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
+import { useTranslation } from 'react-i18next';
 import { API, decodeHtmlEntities, decodeAndStripHtml } from '../../shared-utils';
 import { NewsItem, NewsComment, ActivePage, PhotoReportImage } from '../../types';
 import Breadcrumb from '../Breadcrumb';
@@ -11,10 +12,13 @@ interface NewsArchivePageProps {
 }
 
 export default function NewsArchivePage({ fontSizeScale, onNavigate, selectedNewsId }: NewsArchivePageProps) {
+  const { t, i18n } = useTranslation();
+  const allLabel = t('yazdrud.news.all');
+
   // State for news list and filtering
   const [newsList, setNewsList] = useState<NewsItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedCategory, setSelectedCategory] = useState<string>('همه');
+  const [selectedCategory, setSelectedCategory] = useState<string>(allLabel);
   const [searchQuery, setSearchQuery] = useState<string>('');
   
   // State for active article and content
@@ -44,7 +48,16 @@ export default function NewsArchivePage({ fontSizeScale, onNavigate, selectedNew
   // Load initial news list
   useEffect(() => {
     loadNews();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [i18n.language]);
+
+  // Keep the "All" category label in sync with the current language
+  useEffect(() => {
+    setSelectedCategory((prev) =>
+      prev === allLabel || prev === t('yazdrud.news.all') ? t('yazdrud.news.all') : prev
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [i18n.language, allLabel]);
 
   // Handle direct navigation to a specific news article (home-card click, direct
   // URL, browser back/forward).
@@ -90,7 +103,7 @@ export default function NewsArchivePage({ fontSizeScale, onNavigate, selectedNew
   const loadNews = async () => {
     setLoading(true);
     try {
-      const res = await API<{ data: NewsItem[]; total: number }>('news?per_page=500&page=1&lang=fa');
+      const res = await API<{ data: NewsItem[]; total: number }>(`news?per_page=500&page=1&lang=${i18n.language}`);
       setNewsList(res.data || []);
       setTotalNews(res.total ?? 0);
       setCurrentPage(1);
@@ -132,11 +145,11 @@ export default function NewsArchivePage({ fontSizeScale, onNavigate, selectedNew
           return prev;
         });
       } else {
-        setContentError('متن خبر در دسترس نیست.');
+        setContentError(t('yazdrud.newsArchive.contentUnavailable'));
       }
     } catch (error) {
       console.error('Error fetching article detail:', error);
-      setContentError('خطا در دریافت متن خبر. لطفاً مجدداً تلاش کنید.');
+      setContentError(t('yazdrud.newsArchive.contentLoadError'));
       
       // Fallback to existing content if available
       if (activeArticle) {
@@ -192,7 +205,7 @@ export default function NewsArchivePage({ fontSizeScale, onNavigate, selectedNew
     // Update URL and title
     const seoUrl = `/اخبار/${news.id}/${news.title.replace(/\s+/g, '-').replace(/[^\w\u0600-\u06FF\s-]/g, '').trim()}`;
     window.history.pushState({ page: 'news', newsId: news.id, newsTitle: news.title }, '', seoUrl);
-    document.title = `${news.title} | آرشیو جامع اخبار و اطلاعیه‌ها | اداره کل راه و شهرسازی استان یزد`;
+    document.title = t('yazdrud.newsArchive.articleDocTitle', { title: news.title });
 
     // Update canonical link
     let link = document.querySelector('link[rel="canonical"]');
@@ -213,7 +226,7 @@ export default function NewsArchivePage({ fontSizeScale, onNavigate, selectedNew
     setCommentsList([]);
     setCommentSuccess(false);
     window.history.pushState({ page: 'news' }, '', '/اخبار');
-    document.title = 'آرشیو جامع اخبار و اطلاعیه‌ها | اداره کل راه و شهرسازی استان یزد';
+    document.title = t('yazdrud.newsArchive.docTitle');
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -221,13 +234,14 @@ export default function NewsArchivePage({ fontSizeScale, onNavigate, selectedNew
   const allCategories = React.useMemo(() => {
     const cats = new Set<string>();
     newsList.forEach(n => { if (n.category_name) cats.add(n.category_name); });
-    return ['همه', ...Array.from(cats)];
-  }, [newsList]);
+    return [t('yazdrud.news.all'), ...Array.from(cats)];
+  }, [newsList, t]);
 
   // Client-side filtering
   const filteredNews = React.useMemo(() => {
+    const allCat = t('yazdrud.news.all');
     return newsList.filter((item) => {
-      const matchesCategory = selectedCategory === 'همه' || item.category_name === selectedCategory;
+      const matchesCategory = selectedCategory === allCat || item.category_name === selectedCategory;
       const matchesSearch =
         !searchQuery ||
         item.title.includes(searchQuery) ||
@@ -236,7 +250,7 @@ export default function NewsArchivePage({ fontSizeScale, onNavigate, selectedNew
         (item.tags && item.tags.some((t) => t.includes(searchQuery)));
       return matchesCategory && matchesSearch;
     });
-  }, [newsList, selectedCategory, searchQuery]);
+  }, [newsList, selectedCategory, searchQuery, t]);
 
   // Client-side pagination
   const paginatedNews = React.useMemo(() => {
@@ -324,13 +338,13 @@ export default function NewsArchivePage({ fontSizeScale, onNavigate, selectedNew
   // Breadcrumb items
   const newsBreadcrumbItems = activeArticle
     ? [
-        { label: 'صفحه اصلی', icon: 'fa-house', onClick: () => onNavigate('home') },
+        { label: t('yazdrud.newsArchive.home'), icon: 'fa-house', onClick: () => onNavigate('home') },
         {
-          label: 'اخبار و اطلاع‌رسانی',
+          label: t('yazdrud.newsArchive.newsInfo'),
           onClick: handleBackToArchive,
         },
         {
-          label: `دسته: ${activeArticle.category_name || 'عمومی'}`,
+          label: t('yazdrud.newsArchive.categoryPrefix', { category: activeArticle.category_name || t('yazdrud.news.general') }),
           onClick: () => {
             handleBackToArchive();
             if (activeArticle.category_name) setSelectedCategory(activeArticle.category_name);
@@ -338,15 +352,15 @@ export default function NewsArchivePage({ fontSizeScale, onNavigate, selectedNew
         },
         { label: activeArticle.title, active: true },
       ]
-    : selectedCategory !== 'همه'
+    : selectedCategory !== t('yazdrud.news.all')
     ? [
-        { label: 'صفحه اصلی', icon: 'fa-house', onClick: () => onNavigate('home') },
-        { label: 'اخبار و اطلاع‌رسانی', onClick: () => setSelectedCategory('همه') },
-        { label: `دسته: ${selectedCategory}`, active: true },
+        { label: t('yazdrud.newsArchive.home'), icon: 'fa-house', onClick: () => onNavigate('home') },
+        { label: t('yazdrud.newsArchive.newsInfo'), onClick: () => setSelectedCategory(t('yazdrud.news.all')) },
+        { label: t('yazdrud.newsArchive.categoryPrefix', { category: selectedCategory }), active: true },
       ]
     : [
-        { label: 'صفحه اصلی', icon: 'fa-house', onClick: () => onNavigate('home') },
-        { label: 'آرشیو جامع اخبار و اطلاعیه‌ها', active: true },
+        { label: t('yazdrud.newsArchive.home'), icon: 'fa-house', onClick: () => onNavigate('home') },
+        { label: t('yazdrud.newsArchive.archiveTitle'), active: true },
       ];
 
   // Render gallery images
@@ -358,8 +372,8 @@ export default function NewsArchivePage({ fontSizeScale, onNavigate, selectedNew
       <div className="space-y-3">
         <div className="flex items-center gap-2 text-[#1F3A5F]">
           <i className="fa-solid fa-images text-indigo-500"></i>
-          <span className="text-sm font-black">گزارش تصویری</span>
-          <span className="text-xs text-gray-400 font-mono">({galleryImages.length} تصویر)</span>
+          <span className="text-sm font-black">{t('yazdrud.news.photoReport')}</span>
+          <span className="text-xs text-gray-400 font-mono">{t('yazdrud.newsArchive.photoCount', { count: galleryImages.length })}</span>
         </div>
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
           {galleryImages.map((img, idx) => (
@@ -396,8 +410,8 @@ export default function NewsArchivePage({ fontSizeScale, onNavigate, selectedNew
       return (
         <div className="flex flex-col items-center justify-center gap-4 py-12">
           <div className="w-10 h-10 border-4 border-[#1F3A5F]/20 border-t-[#1F3A5F] rounded-full animate-spin" />
-          <span className="text-sm text-gray-500 font-semibold">در حال دریافت متن خبر...</span>
-          <span className="text-xs text-gray-400">لطفاً چند لحظه صبر کنید</span>
+          <span className="text-sm text-gray-500 font-semibold">{t('yazdrud.newsArchive.loadingContent')}</span>
+          <span className="text-xs text-gray-400">{t('yazdrud.newsArchive.pleaseWait')}</span>
         </div>
       );
     }
@@ -412,7 +426,7 @@ export default function NewsArchivePage({ fontSizeScale, onNavigate, selectedNew
               onClick={() => setArticleContent(activeArticle.content || '')}
               className="mt-3 px-4 py-2 bg-red-100 text-red-700 rounded-lg text-xs font-bold hover:bg-red-200 transition-colors"
             >
-              نمایش محتوای موجود
+              {t('yazdrud.newsArchive.showExisting')}
             </button>
           )}
         </div>
@@ -423,8 +437,8 @@ export default function NewsArchivePage({ fontSizeScale, onNavigate, selectedNew
       return (
         <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-6 text-center">
           <i className="fa-solid fa-file-lines text-yellow-500 text-2xl mb-3"></i>
-          <p className="text-sm text-yellow-700 font-semibold">متن خبر در دسترس نیست</p>
-          <p className="text-xs text-yellow-600 mt-1">لطفاً بعداً مجدداً تلاش کنید</p>
+          <p className="text-sm text-yellow-700 font-semibold">{t('yazdrud.newsArchive.contentUnavailableShort')}</p>
+          <p className="text-xs text-yellow-600 mt-1">{t('yazdrud.newsArchive.tryLater')}</p>
         </div>
       );
     }
@@ -441,7 +455,7 @@ export default function NewsArchivePage({ fontSizeScale, onNavigate, selectedNew
     <div className="min-h-screen bg-[#F5F6F8] pb-20 text-[#1F3A5F]" style={{ fontSize: `${16 * fontSizeScale}px` }}>
       <Breadcrumb
         currentPage="news"
-        pageTitle="اخبار و اطلاع‌رسانی"
+        pageTitle={t('yazdrud.newsArchive.newsInfo')}
         items={newsBreadcrumbItems}
         onNavigate={onNavigate}
       />
@@ -464,16 +478,16 @@ export default function NewsArchivePage({ fontSizeScale, onNavigate, selectedNew
                   className="px-4 py-2 rounded-xl bg-[#1F3A5F] hover:bg-[#1F3A5F]/90 text-white font-extrabold text-xs flex items-center gap-2 cursor-pointer transition-all"
                 >
                   <i className="fa-solid fa-arrow-right"></i>
-                  <span>بازگشت به لیست آرشیو اخبار</span>
+                  <span>{t('yazdrud.newsArchive.backToList')}</span>
                 </button>
 
                 <div className="flex flex-wrap items-center gap-3 text-xs text-gray-500 font-bold">
                   <span className="bg-[#2A9D8F]/15 text-[#2A9D8F] px-3 py-1 rounded-full font-black">
-                    کد خبر: NEWS-{activeArticle.id}
+                    {t('yazdrud.newsArchive.newsCode', { id: activeArticle.id })}
                   </span>
                   <span>
                     <i className="fa-solid fa-eye text-[#2A9D8F] ml-1"></i> 
-                    {activeArticle.views_count || 0} بازدید
+                    {activeArticle.views_count || 0} {t('yazdrud.news.views')}
                   </span>
                 </div>
               </div>
@@ -484,14 +498,14 @@ export default function NewsArchivePage({ fontSizeScale, onNavigate, selectedNew
                 <div className="space-y-4 border-b border-gray-100 pb-6">
                   <div className="flex flex-wrap items-center gap-3 text-xs text-[#B76E4C] font-extrabold">
                     <span className="px-3 py-1 bg-[#B76E4C]/10 rounded-lg">
-                      دسته‌بندی: {activeArticle.category_name || 'عمومی'}
+                      {t('yazdrud.newsArchive.categoryLabel', { category: activeArticle.category_name || t('yazdrud.news.general') })}
                     </span>
                     <span>•</span>
-                    <span>تاریخ انتشار: {formatDate(activeArticle.published_at || activeArticle.created_at)}</span>
+                    <span>{t('yazdrud.newsArchive.publishDate', { date: formatDate(activeArticle.published_at || activeArticle.created_at) })}</span>
                     {activeArticle.author_name && (
                       <>
                         <span>•</span>
-                        <span>منبع: {activeArticle.author_name}</span>
+                        <span>{t('yazdrud.newsArchive.source', { author: activeArticle.author_name })}</span>
                       </>
                     )}
                   </div>
@@ -534,7 +548,7 @@ export default function NewsArchivePage({ fontSizeScale, onNavigate, selectedNew
                 {/* Short Link */}
                 <div className="border-t border-gray-100 pt-4">
                   <div className="flex flex-wrap items-center gap-2 text-xs text-gray-500 font-semibold">
-                    <span>🔗 لینک کوتاه:</span>
+                    <span>{t('yazdrud.newsArchive.shortLink')}</span>
                     <code className="bg-gray-100 px-3 py-1.5 rounded-lg text-gray-700 font-mono text-xs dir-ltr break-all">
                       yazdrud.ir/n/{activeArticle.id}
                     </code>
@@ -544,14 +558,14 @@ export default function NewsArchivePage({ fontSizeScale, onNavigate, selectedNew
                         const btn = document.getElementById(`copy-btn-${activeArticle.id}`);
                         if (btn) {
                           const orig = btn.innerHTML;
-                          btn.innerHTML = '✅ کپی شد!';
+                          btn.innerHTML = t('yazdrud.newsArchive.copied');
                           setTimeout(() => btn.innerHTML = orig, 2000);
                         }
                       }}
                       id={`copy-btn-${activeArticle.id}`}
                       className="px-3 py-1.5 rounded-lg bg-[#1F3A5F] hover:bg-[#1F3A5F]/90 text-white font-bold transition-all cursor-pointer"
                     >
-                      کپی لینک
+                      {t('yazdrud.newsArchive.copyLink')}
                     </button>
                   </div>
                 </div>
@@ -559,7 +573,7 @@ export default function NewsArchivePage({ fontSizeScale, onNavigate, selectedNew
                 {/* Tags */}
                 {activeArticle.tags && activeArticle.tags.length > 0 && (
                   <div className="flex items-center gap-2 flex-wrap pt-4 border-t border-gray-100">
-                    <span className="text-xs font-black text-gray-500">برچسب‌ها:</span>
+                    <span className="text-xs font-black text-gray-500">{t('yazdrud.newsArchive.tags')}</span>
                     {activeArticle.tags.map((tag, idx) => (
                       <span key={idx} className="bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs px-3 py-1 rounded-lg font-bold">
                         #{tag}
@@ -574,9 +588,9 @@ export default function NewsArchivePage({ fontSizeScale, onNavigate, selectedNew
                 <div className="bg-white rounded-3xl p-6 sm:p-8 shadow-md border border-gray-200 space-y-6">
                   <h3 className="text-xl font-black text-[#1F3A5F] flex items-center gap-2">
                     <i className="fa-solid fa-comments text-[#2A9D8F]"></i>
-                    <span>نظرات شهروندان و ذی‌نفعان</span>
+                    <span>{t('yazdrud.newsArchive.commentsTitle')}</span>
                     <span className="text-xs font-bold text-gray-400 font-mono">
-                      ({activeArticle.comments_count ?? 0} نظر)
+                      {t('yazdrud.newsArchive.commentsCount', { count: activeArticle.comments_count ?? 0 })}
                     </span>
                   </h3>
 
@@ -585,13 +599,13 @@ export default function NewsArchivePage({ fontSizeScale, onNavigate, selectedNew
                     {commentsLoading ? (
                       <div className="flex items-center justify-center gap-2 py-4">
                         <div className="w-5 h-5 border-2 border-[#1F3A5F]/20 border-t-[#1F3A5F] rounded-full animate-spin" />
-                        <span className="text-xs text-gray-500 font-semibold">در حال بارگذاری نظرات...</span>
+                        <span className="text-xs text-gray-500 font-semibold">{t('yazdrud.newsArchive.loadingComments')}</span>
                       </div>
                     ) : commentsList.length === 0 ? (
                       <div className="bg-[#F5F6F8] p-6 rounded-2xl border border-gray-200 text-center">
                         <i className="fa-solid fa-comment-slash text-gray-300 text-2xl mb-2"></i>
                         <p className="text-xs text-gray-500 font-semibold">
-                          هنوز نظری ثبت نشده است. اولین نفری باشید که نظر می‌دهید!
+                          {t('yazdrud.newsArchive.noComments')}
                         </p>
                       </div>
                     ) : (
@@ -611,12 +625,12 @@ export default function NewsArchivePage({ fontSizeScale, onNavigate, selectedNew
 
                   {/* Submit comment form */}
                   <form onSubmit={handleAddComment} className="space-y-4 pt-4 border-t border-gray-100">
-                    <h4 className="text-xs font-black text-[#1F3A5F]">ارسال نظر جدید:</h4>
+                    <h4 className="text-xs font-black text-[#1F3A5F]">{t('yazdrud.newsArchive.submitComment')}</h4>
 
                     {commentSuccess && (
                       <div className="p-3 bg-emerald-50 border border-emerald-300 text-emerald-800 rounded-xl text-xs font-bold flex items-center gap-2">
                         <i className="fa-solid fa-circle-check"></i>
-                        <span>نظر شما با موفقیت دریافت شد و پس از بررسی منتشر خواهد شد.</span>
+                        <span>{t('yazdrud.newsArchive.commentSuccess')}</span>
                       </div>
                     )}
 
@@ -625,7 +639,7 @@ export default function NewsArchivePage({ fontSizeScale, onNavigate, selectedNew
                         type="text"
                         value={commentName}
                         onChange={(e) => setCommentName(e.target.value)}
-                        placeholder="نام و نام خانوادگی یا عنوان شغلی"
+                        placeholder={t('yazdrud.newsArchive.namePlaceholder')}
                         required
                         className="px-4 py-2.5 rounded-xl border border-gray-300 text-xs font-bold focus:border-[#2A9D8F] focus:outline-none"
                       />
@@ -634,7 +648,7 @@ export default function NewsArchivePage({ fontSizeScale, onNavigate, selectedNew
                     <textarea
                       value={commentText}
                       onChange={(e) => setCommentText(e.target.value)}
-                      placeholder="متن نظر یا پیشنهاد شما..."
+                      placeholder={t('yazdrud.newsArchive.commentPlaceholder')}
                       rows={3}
                       required
                       className="w-full px-4 py-2.5 rounded-xl border border-gray-300 text-xs font-bold focus:border-[#2A9D8F] focus:outline-none"
@@ -648,12 +662,12 @@ export default function NewsArchivePage({ fontSizeScale, onNavigate, selectedNew
                       {commentSubmitting ? (
                         <>
                           <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin"></div>
-                          <span>در حال ارسال...</span>
+                          <span>{t('yazdrud.newsArchive.sending')}</span>
                         </>
                       ) : (
                         <>
                           <i className="fa-solid fa-paper-plane"></i>
-                          <span>ثبت و ارسال نظر</span>
+                          <span>{t('yazdrud.newsArchive.submitAndSend')}</span>
                         </>
                       )}
                     </button>
@@ -702,7 +716,7 @@ export default function NewsArchivePage({ fontSizeScale, onNavigate, selectedNew
                         setSearchQuery(e.target.value);
                         setCurrentPage(1);
                       }}
-                      placeholder="جستجو در عنوان یا متن اخبار..."
+                      placeholder={t('yazdrud.newsArchive.searchPlaceholder')}
                       className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-300 rounded-xl text-xs font-bold text-[#1F3A5F] focus:outline-none focus:border-[#2A9D8F]"
                     />
                     <i className="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs"></i>
@@ -714,7 +728,7 @@ export default function NewsArchivePage({ fontSizeScale, onNavigate, selectedNew
               {loading && (
                 <div className="bg-white p-12 text-center rounded-3xl border border-gray-200 space-y-3">
                   <div className="w-10 h-10 border-4 border-[#1F3A5F]/20 border-t-[#1F3A5F] rounded-full animate-spin mx-auto" />
-                  <p className="text-xs text-gray-500 font-semibold">در حال بارگذاری اخبار...</p>
+                  <p className="text-xs text-gray-500 font-semibold">{t('yazdrud.newsArchive.loadingNews')}</p>
                 </div>
               )}
 
@@ -722,16 +736,16 @@ export default function NewsArchivePage({ fontSizeScale, onNavigate, selectedNew
               {!loading && filteredNews.length === 0 && (
                 <div className="bg-white p-12 text-center rounded-3xl border border-gray-200 space-y-3">
                   <i className="fa-solid fa-newspaper text-4xl text-gray-300"></i>
-                  <h4 className="font-extrabold text-[#1F3A5F]">خبری یافت نشد</h4>
+                  <h4 className="font-extrabold text-[#1F3A5F]">{t('yazdrud.newsArchive.noNewsFound')}</h4>
                   <p className="text-xs text-gray-500 font-semibold">
-                    {searchQuery ? 'عبارت دیگری را برای جستجو وارد کنید.' : 'هیچ خبری در این دسته‌بندی وجود ندارد.'}
+                    {searchQuery ? t('yazdrud.newsArchive.tryOtherQuery') : t('yazdrud.newsArchive.noNewsInCategory')}
                   </p>
                   {searchQuery && (
                     <button
                       onClick={() => setSearchQuery('')}
                       className="px-4 py-2 bg-[#1F3A5F] text-white rounded-xl text-xs font-bold hover:bg-[#1F3A5F]/90 transition-colors"
                     >
-                      پاک کردن جستجو
+                      {t('yazdrud.newsArchive.clearSearch')}
                     </button>
                   )}
                 </div>
@@ -767,12 +781,12 @@ export default function NewsArchivePage({ fontSizeScale, onNavigate, selectedNew
                               className="absolute top-3 right-3 text-white text-[10px] font-black px-3 py-1 rounded-full shadow-md"
                               style={{ backgroundColor: news.category_color || '#B76E4C' }}
                             >
-                              {news.category_name || 'عمومی'}
+                              {news.category_name || t('yazdrud.news.general')}
                             </span>
                             {news.is_photo_report && (
                               <span className="absolute bottom-3 left-3 bg-indigo-600/90 text-white text-[10px] font-bold px-2.5 py-1 rounded-full shadow flex items-center gap-1 backdrop-blur-sm">
                                 <i className="fa-solid fa-images"></i>
-                                <span>گزارش تصویری</span>
+                                <span>{t('yazdrud.news.photoReport')}</span>
                               </span>
                             )}
                           </div>
@@ -804,7 +818,7 @@ export default function NewsArchivePage({ fontSizeScale, onNavigate, selectedNew
 
                         {/* Footer */}
                         <div className="px-5 py-3.5 bg-gray-50 border-t border-gray-100 flex items-center justify-between text-xs font-bold text-[#2A9D8F]">
-                          <span>مطالعه کامل خبر</span>
+                          <span>{t('yazdrud.news.readMore')}</span>
                           <i className="fa-solid fa-arrow-left group-hover:-translate-x-1 transition-transform"></i>
                         </div>
                       </motion.div>
@@ -815,8 +829,11 @@ export default function NewsArchivePage({ fontSizeScale, onNavigate, selectedNew
                   {lastPage > 1 && (
                     <div className="flex flex-col items-center gap-4 pt-8">
                       <div className="text-xs text-gray-500 font-semibold">
-                        صفحه {currentPage.toLocaleString('fa-IR')} از {lastPage.toLocaleString('fa-IR')} 
-                        (مجموع {filteredNews.length.toLocaleString('fa-IR')} خبر)
+                        {t('yazdrud.newsArchive.pageInfo', {
+                          current: currentPage.toLocaleString('fa-IR'),
+                          total: lastPage.toLocaleString('fa-IR'),
+                          newsCount: filteredNews.length.toLocaleString('fa-IR')
+                        })}
                       </div>
                       <div className="flex items-center gap-2" dir="ltr">
                         <button
@@ -828,7 +845,7 @@ export default function NewsArchivePage({ fontSizeScale, onNavigate, selectedNew
                           className="px-4 py-2 rounded-xl text-xs font-bold border border-gray-300 bg-white text-[#1F3A5F] hover:bg-[#1F3A5F] hover:text-white disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-white disabled:hover:text-[#1F3A5F] transition-all cursor-pointer"
                         >
                           <i className="fa-solid fa-chevron-right ml-1"></i>
-                          قبلی
+                          {t('yazdrud.newsArchive.prev')}
                         </button>
 
                         {Array.from({ length: lastPage }, (_, i) => i + 1)
@@ -862,7 +879,7 @@ export default function NewsArchivePage({ fontSizeScale, onNavigate, selectedNew
                           disabled={currentPage >= lastPage}
                           className="px-4 py-2 rounded-xl text-xs font-bold border border-gray-300 bg-white text-[#1F3A5F] hover:bg-[#1F3A5F] hover:text-white disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-white disabled:hover:text-[#1F3A5F] transition-all cursor-pointer"
                         >
-                          بعدی
+                          {t('yazdrud.newsArchive.next')}
                           <i className="fa-solid fa-chevron-left mr-1"></i>
                         </button>
                       </div>

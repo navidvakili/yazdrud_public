@@ -1,13 +1,16 @@
+import { useTranslation } from 'react-i18next';
+
 interface FooterProps {
   fontSizeScale: number;
   onNavigate: (section: string) => void;
 }
 
 export default function Footer({ fontSizeScale, onNavigate }: FooterProps) {
+  const { t } = useTranslation();
   const currentYearPersian = '۱۴۰۵';
 
   const handleSystemLink = (name: string) => {
-    alert(`در حال انتقال امن به سامانه کشوری: ${name}...`);
+    alert(t('yazdrud.footer.systemLinkAlert', { name }));
   };
 
   return (
@@ -27,45 +30,45 @@ export default function Footer({ fontSizeScale, onNavigate }: FooterProps) {
             <div className="w-10 h-10 rounded-lg p-1 flex items-center justify-center">
               <img 
                 src="/assets/images/logo-white.png" 
-                alt="لوگو اداره کل راه و شهرسازی استان یزد"
+                alt={t('yazdrud.footer.logoAlt')}
                 className="w-full h-full object-contain"
               />
             </div>
             <div>
-              <h4 className="text-base font-black text-white">اداره کل راه و شهرسازی استان یزد</h4>
-              <p className="text-[10px] text-[#E7D3B1] font-medium">پورتال خدمات هوشمند و توسعه محور</p>
+              <h4 className="text-base font-black text-white">{t('yazdrud.footer.orgName')}</h4>
+              <p className="text-[10px] text-[#E7D3B1] font-medium">{t('yazdrud.footer.tagline')}</p>
             </div>
           </div>
 
           <p className="text-xs text-gray-300 font-bold leading-relaxed">
-            اولین شهر خشتی ثبت یونسکو با تکیه بر اصول توسعه پایدار، بهبود شریان‌های ترانزیتی و جاده‌ای کویری و تحویل خانه‌های مسکونی ایمن در چهارچوب نهضت ملی مسکن گام برمی‌دارد.
+            {t('yazdrud.footer.aboutText')}
           </p>
 
           {/* Social Network Links */}
           <div className="space-y-2 pt-2">
-            <span className="text-xs font-bold text-[#E7D3B1] block">ما را در رسانه‌ها دنبال کنید:</span>
+            <span className="text-xs font-bold text-[#E7D3B1] block">{t('yazdrud.footer.followUs')}</span>
             <div className="flex gap-3">
               {/* Eitaa */}
               <button
-                onClick={() => handleSystemLink('پیام‌رسان ایتا')}
+                onClick={() => handleSystemLink(t('yazdrud.footer.eitaa'))}
                 className="w-9 h-9 rounded-xl bg-white/10 hover:bg-[#B76E4C] hover:scale-105 active:scale-95 transition-all border border-white/20 flex items-center justify-center cursor-pointer"
-                title="کانال ایتا اداره کل"
+                title={t('yazdrud.footer.eitaaTitle')}
               >
                 <i className="fa-solid fa-paper-plane text-xs text-white"></i>
               </button>
               {/* Bale */}
               <button
-                onClick={() => handleSystemLink('پیام‌رسان بله')}
+                onClick={() => handleSystemLink(t('yazdrud.footer.bale'))}
                 className="w-9 h-9 rounded-xl bg-white/10 hover:bg-[#2A9D8F] hover:scale-105 active:scale-95 transition-all border border-white/20 flex items-center justify-center cursor-pointer"
-                title="کانال بله اداره کل"
+                title={t('yazdrud.footer.baleTitle')}
               >
                 <i className="fa-solid fa-comments text-xs text-white"></i>
               </button>
               {/* Aparat */}
               <button
-                onClick={() => handleSystemLink('آپارات')}
+                onClick={() => handleSystemLink(t('yazdrud.footer.aparat'))}
                 className="w-9 h-9 rounded-xl bg-white/10 hover:bg-red-600 hover:scale-105 active:scale-95 transition-all border border-white/20 flex items-center justify-center cursor-pointer"
-                title="کانال آپارات ویدیوها"
+                title={t('yazdrud.footer.aparatTitle')}
               >
                 <i className="fa-solid fa-video text-xs text-white"></i>
               </button>
@@ -75,30 +78,30 @@ export default function Footer({ fontSizeScale, onNavigate }: FooterProps) {
 
         {/* Column 2: Quick Links */}
         <div className="space-y-3">
-          <h4 className="text-sm font-black text-[#E7D3B1] border-r-4 border-[#2A9D8F] pr-2">دسترسی سریع</h4>
+          <h4 className="text-sm font-black text-[#E7D3B1] border-r-4 border-[#2A9D8F] pr-2">{t('yazdrud.footer.quickAccess')}</h4>
           <ul className="space-y-2 text-xs font-bold text-gray-300">
             <li>
               <button onClick={() => onNavigate('hero')} className="hover:text-white transition-colors">
                 <i className="fa-solid fa-chevron-left text-[8px] text-[#2A9D8F] ml-1.5"></i>
-                <span>صفحه نخست</span>
+                <span>{t('yazdrud.footer.home')}</span>
               </button>
             </li>
             <li>
               <button onClick={() => onNavigate('services')} className="hover:text-white transition-colors">
                 <i className="fa-solid fa-chevron-left text-[8px] text-[#2A9D8F] ml-1.5"></i>
-                <span>خدمات الکترونیک پیشخوان</span>
+                <span>{t('yazdrud.footer.eServices')}</span>
               </button>
             </li>
             <li>
               <button onClick={() => onNavigate('interactive-map')} className="hover:text-white transition-colors">
                 <i className="fa-solid fa-chevron-left text-[8px] text-[#2A9D8F] ml-1.5"></i>
-                <span>نقشه و شهرستان‌ها</span>
+                <span>{t('yazdrud.footer.mapCounties')}</span>
               </button>
             </li>
             <li>
               <button onClick={() => onNavigate('news')} className="hover:text-white transition-colors">
                 <i className="fa-solid fa-chevron-left text-[8px] text-[#2A9D8F] ml-1.5"></i>
-                <span>رویدادها و اخبار</span>
+                <span>{t('yazdrud.footer.eventsNews')}</span>
               </button>
             </li>
           </ul>
@@ -106,30 +109,30 @@ export default function Footer({ fontSizeScale, onNavigate }: FooterProps) {
 
         {/* Column 3: Related Systems */}
         <div className="space-y-3">
-          <h4 className="text-sm font-black text-[#E7D3B1] border-r-4 border-[#C98A5A] pr-2">سامانه‌های مرتبط دولتی</h4>
+          <h4 className="text-sm font-black text-[#E7D3B1] border-r-4 border-[#C98A5A] pr-2">{t('yazdrud.footer.relatedSystems')}</h4>
           <ul className="space-y-2 text-xs font-bold text-gray-300">
             <li>
-              <button onClick={() => handleSystemLink('پورتال وزارت راه و شهرسازی')} className="hover:text-white text-right transition-colors">
+              <button onClick={() => handleSystemLink(t('yazdrud.footer.ministryPortal'))} className="hover:text-white text-right transition-colors">
                 <i className="fa-solid fa-link text-[8px] text-[#C98A5A] ml-1.5"></i>
-                <span>پورتال اصلی وزارتخانه متبوع</span>
+                <span>{t('yazdrud.footer.ministryPortalLabel')}</span>
               </button>
             </li>
             <li>
-              <button onClick={() => handleSystemLink('درگاه ملی خدمات دولت هوشمند')} className="hover:text-white text-right transition-colors">
+              <button onClick={() => handleSystemLink(t('yazdrud.footer.nationalSmartGov'))} className="hover:text-white text-right transition-colors">
                 <i className="fa-solid fa-link text-[8px] text-[#C98A5A] ml-1.5"></i>
-                <span>درگاه ملی دولت هوشمند</span>
+                <span>{t('yazdrud.footer.nationalSmartGovLabel')}</span>
               </button>
             </li>
             <li>
-              <button onClick={() => handleSystemLink('سامانه املاک و اسکان کشور')} className="hover:text-white text-right transition-colors">
+              <button onClick={() => handleSystemLink(t('yazdrud.footer.amlakPortal'))} className="hover:text-white text-right transition-colors">
                 <i className="fa-solid fa-link text-[8px] text-[#C98A5A] ml-1.5"></i>
-                <span>سامانه ملی املاک و اسکان</span>
+                <span>{t('yazdrud.footer.amlakPortalLabel')}</span>
               </button>
             </li>
             <li>
-              <button onClick={() => handleSystemLink('سازمان شهرداری‌ها و دهیاری‌ها')} className="hover:text-white text-right transition-colors">
+              <button onClick={() => handleSystemLink(t('yazdrud.footer.shahrdariPortal'))} className="hover:text-white text-right transition-colors">
                 <i className="fa-solid fa-link text-[8px] text-[#C98A5A] ml-1.5"></i>
-                <span>شهرداری الکترونیک یزد</span>
+                <span>{t('yazdrud.footer.shahrdariPortalLabel')}</span>
               </button>
             </li>
           </ul>
@@ -137,23 +140,23 @@ export default function Footer({ fontSizeScale, onNavigate }: FooterProps) {
 
         {/* Column 4: Address and Contacts */}
         <div className="space-y-3">
-          <h4 className="text-sm font-black text-[#E7D3B1] border-r-4 border-[#B76E4C] pr-2">اطلاعات ارتباطی</h4>
+          <h4 className="text-sm font-black text-[#E7D3B1] border-r-4 border-[#B76E4C] pr-2">{t('yazdrud.footer.contactInfo')}</h4>
           <ul className="space-y-2.5 text-xs text-gray-300 font-medium leading-relaxed">
             <li className="flex items-start gap-2">
               <i className="fa-solid fa-map-location-dot text-[#B76E4C] mt-1 text-[11px]"></i>
-              <span>نشانی: یزد، خیابان مسکن و شهرسازی</span>
+              <span>{t('yazdrud.footer.addressLabel')} {t('yazdrud.footer.addressValue')}</span>
             </li>
             <li className="flex items-center gap-2">
               <i className="fa-solid fa-phone text-[#2A9D8F] text-[11px]"></i>
-              <span>تلفن: <span dir="ltr" className="font-mono">035-36236200</span></span>
+              <span>{t('yazdrud.footer.phoneLabel')} <span dir="ltr" className="font-mono">035-36236200</span></span>
             </li>
             <li className="flex items-center gap-2">
               <i className="fa-solid fa-fax text-[#C98A5A] text-[11px]"></i>
-              <span>نمابر دبیرخانه: <span dir="ltr" className="font-mono">035-36235065</span></span>
+              <span>{t('yazdrud.footer.faxLabel')} <span dir="ltr" className="font-mono">035-36235065</span></span>
             </li>
             <li className="flex items-center gap-2">
               <i className="fa-solid fa-envelope text-white/60 text-[11px]"></i>
-              <span>پست الکترونیک: <span dir="ltr" className="font-mono">info@yazdrud.ir</span></span>
+              <span>{t('yazdrud.footer.emailLabel')} <span dir="ltr" className="font-mono">info@yazdrud.ir</span></span>
             </li>
           </ul>
         </div>
@@ -166,19 +169,19 @@ export default function Footer({ fontSizeScale, onNavigate }: FooterProps) {
       {/* Copyright Bar */}
       <div className="max-w-7xl mx-auto flex flex-col sm:flex-row justify-between items-center text-[11px] font-bold text-gray-400 gap-4">
         <div className="text-center sm:text-right">
-          <span>کلیه حقوق مادی و معنوی این پورتال متعلق به </span>
-          <strong className="text-white">اداره کل راه و شهرسازی استان یزد</strong>
-          <span> می‌باشد. {currentYearPersian} ©</span>
+          <span>{t('yazdrud.footer.copyrightPrefix')} </span>
+          <strong className="text-white">{t('yazdrud.footer.orgName')}</strong>
+          <span> {t('yazdrud.footer.copyrightSuffix', { year: currentYearPersian })}</span>
         </div>
         <div className="flex items-center gap-1.5">
-          <span>طراحی و توسعه: </span>
+          <span>{t('yazdrud.footer.designedBy')} </span>
           <a
             href="https://karanet.info"
             target="_blank"
             rel="noopener noreferrer"
             className="bg-[#2A9D8F] text-white px-2 py-0.5 rounded text-[10px] font-black hover:bg-[#1F3A5F] transition-colors"
           >
-            شرکت فناوری اطلاعات کارانت
+            {t('yazdrud.footer.companyName')}
           </a>
         </div>
       </div>

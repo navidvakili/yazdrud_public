@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
+import { useTranslation } from 'react-i18next';
 import { fetchSliderStudioProject } from '../api';
 import type { Layer, SliderProject, Slide } from '../types';
 import ParticleCanvas from './ParticleCanvas';
@@ -401,6 +402,7 @@ function TextAnimContent({ text, preset, duration, delay }: { text: string; pres
 }
 
 export default function Hero({ onNavigate }: HeroProps) {
+  const { t, i18n } = useTranslation();
   const [project, setProject] = useState<SliderProject | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -416,7 +418,7 @@ export default function Hero({ onNavigate }: HeroProps) {
 
     async function loadSlides() {
       try {
-        const ssRes = await fetchSliderStudioProject<{ data: SliderProject }>();
+        const ssRes = await fetchSliderStudioProject<{ data: SliderProject }>(i18n.language);
         if (cancelled) return;
 
         if (ssRes?.data?.slides && ssRes.data.slides.length > 0) {
@@ -428,14 +430,14 @@ export default function Hero({ onNavigate }: HeroProps) {
         setLoading(false);
       } catch (err: any) {
         if (cancelled) return;
-        setError(err.message || 'خطا در دریافت اسلایدها');
+        setError(err.message || t('yazdrud.hero.loadError'));
         setLoading(false);
       }
     }
 
     loadSlides();
     return () => { cancelled = true; };
-  }, []);
+  }, [i18n.language, t]);
 
   const slides = project?.slides || [];
   const activeSlide: Slide | undefined = slides[currentSlide];
@@ -555,7 +557,7 @@ export default function Hero({ onNavigate }: HeroProps) {
       <section id="hero" className="relative w-full h-screen min-h-[650px] flex items-center justify-center bg-[#0d1b2a] text-white pt-28 pb-12">
         <div className="text-center">
           <div className="w-10 h-10 border-4 border-teal-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-sm font-bold text-gray-400">در حال بارگذاری...</p>
+          <p className="text-sm font-bold text-gray-400">{t('yazdrud.hero.loading')}</p>
         </div>
       </section>
     );
@@ -568,7 +570,7 @@ export default function Hero({ onNavigate }: HeroProps) {
         <div className="text-center px-4">
           <i className="fa-solid fa-image text-4xl text-gray-600 mb-4"></i>
           <p className="text-sm font-bold text-gray-400">
-            {error ? 'خطا در بارگذاری اسلایدها' : 'اسلایدی برای نمایش وجود ندارد'}
+            {error ? t('yazdrud.hero.loadError') : t('yazdrud.hero.noSlides')}
           </p>
         </div>
       </section>

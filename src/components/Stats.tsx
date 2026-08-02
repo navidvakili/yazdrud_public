@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { API } from '../shared-utils';
 
 interface TimelineItem {
@@ -67,6 +68,7 @@ interface StatsProps {
 }
 
 export default function Stats({ fontSizeScale }: StatsProps) {
+  const { t, i18n } = useTranslation();
   const [items, setItems] = useState<StatItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [counts, setCounts] = useState<number[]>([]);
@@ -77,7 +79,7 @@ export default function Stats({ fontSizeScale }: StatsProps) {
 
     async function fetchData() {
       try {
-        const result = await API<{ success: boolean; data: TimelineItem[] }>('development-timeline?lang=fa');
+        const result = await API<{ success: boolean; data: TimelineItem[] }>(`development-timeline?lang=${i18n.language}`);
         if (!cancelled && result.success && result.data.length > 0) {
           const mapped: StatItem[] = result.data.map((item) => {
             const iconName = iconNameOnly(item.icon);
@@ -101,7 +103,7 @@ export default function Stats({ fontSizeScale }: StatsProps) {
 
     fetchData();
     return () => { cancelled = true; };
-  }, []);
+  }, [i18n.language]);
 
   // Animated counter
   useEffect(() => {
@@ -147,10 +149,10 @@ export default function Stats({ fontSizeScale }: StatsProps) {
       <div className="relative z-10 max-w-7xl mx-auto">
         <div className="text-center mb-10">
           <h3 className="text-2xl md:text-3xl font-black tracking-tight mb-2 text-[#E7D3B1]">
-            روند توسعه و تحول عمران شهری و جاده‌ای یزد
+            {t('yazdrud.stats.title')}
           </h3>
           <p className="text-xs sm:text-sm text-gray-300 font-medium max-w-xl mx-auto">
-            آمار افتخارآمیز خدمت‌رسانی بی‌وقفه اداره کل راه و شهرسازی استان یزد به هموطنان گرانقدر در سال‌های اخیر
+            {t('yazdrud.stats.subtitle')}
           </p>
         </div>
 

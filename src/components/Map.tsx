@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { fetchCountyProjects } from '../api';
 import { CountyData, CountyProjectResponse } from '../types';
 
@@ -116,6 +117,7 @@ const COUNTY_FILLS: Record<string, { default: string; hover: string; selected: s
 };
 
 export default function Map({ fontSizeScale }: MapProps) {
+  const { t, i18n } = useTranslation();
   const [hoveredCounty, setHoveredCounty] = useState<CountyData | null>(null);
   const [selectedCounty, setSelectedCounty] = useState<CountyData | null>(null);
   const [countiesData, setCountiesData] = useState<CountyData[]>([]);
@@ -127,20 +129,20 @@ export default function Map({ fontSizeScale }: MapProps) {
     setDataLoading(true);
     setDataError(null);
     try {
-      const response = await fetchCountyProjects<{ data: CountyProjectResponse[] }>();
+      const response = await fetchCountyProjects<{ data: CountyProjectResponse[] }>(i18n.language);
       const transformed = transformApiData(response.data);
       setCountiesData(transformed);
       // Set first county as default selection
-      if (transformed.length > 0 && !selectedCounty) {
-        setSelectedCounty(transformed[0]);
+      if (transformed.length > 0) {
+        setSelectedCounty((prev) => prev ?? transformed[0]);
       }
     } catch (err: any) {
       console.error('Failed to load county projects:', err);
-      setDataError('خطا در دریافت اطلاعات');
+      setDataError(t('yazdrud.map.dataError'));
     } finally {
       setDataLoading(false);
     }
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [i18n.language, t]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     loadData();
@@ -182,15 +184,14 @@ export default function Map({ fontSizeScale }: MapProps) {
         {/* Title Section */}
         <div className="text-center mb-12">
           <span className="text-[#2A9D8F] font-bold text-sm tracking-widest block mb-2 uppercase">
-            🗺️ رصدخانه برخط توسعه و عمران
+            {t('yazdrud.map.badge')}
           </span>
           <h3 className="text-3xl font-black text-[#1F3A5F] flex items-center justify-center gap-2">
             <i className="fa-solid fa-map-location-dot text-[#B76E4C]"></i>
-            <span>نقشه تعاملی پروژه‌های عمرانی استان یزد</span>
+            <span>{t('yazdrud.map.title')}</span>
           </h3>
           <p className="text-gray-600 text-sm font-semibold max-w-xl mx-auto mt-3">
-            برای مشاهده جزئیات پروژه‌های مسکن ملی، طول راه‌های در دست احداث و طرح‌های تفصیلی مصوب،
-            روی شهرستان مورد نظر کلیک کنید.
+            {t('yazdrud.map.subtitle')}
           </p>
           <div className="w-24 h-1 bg-[#1F3A5F] mx-auto mt-4 rounded-full"></div>
         </div>
@@ -201,18 +202,18 @@ export default function Map({ fontSizeScale }: MapProps) {
           <div className="lg:col-span-7 glass-panel rounded-3xl p-6 border border-white/40 shadow-xl relative flex flex-col items-center">
             {/* Legend */}
             <div className="absolute top-4 right-4 bg-white/85 backdrop-blur-md border border-white/50 rounded-xl p-3 shadow-md text-[10px] space-y-1.5 z-10 font-bold text-[#1F3A5F]">
-              <span className="text-[#1F3A5F] font-bold block border-b pb-1 mb-1">راهنمای نقشه:</span>
+              <span className="text-[#1F3A5F] font-bold block border-b pb-1 mb-1">{t('yazdrud.map.legendTitle')}</span>
               <div className="flex items-center gap-2">
                 <span className="w-3 h-3 rounded-full bg-red-500 animate-ping"></span>
-                <span>پروژه‌های فعال راه‌سازی</span>
+                <span>{t('yazdrud.map.legendRoad')}</span>
               </div>
               <div className="flex items-center gap-2">
                 <span className="w-3 h-3 rounded-full bg-[#1F3A5F]"></span>
-                <span>کارگاه انبوه‌سازی مسکن ملی</span>
+                <span>{t('yazdrud.map.legendHousing')}</span>
               </div>
               <div className="flex items-center gap-2">
                 <span className="w-3 h-3 bg-[#2A9D8F] border border-[#1F3A5F] rounded-sm"></span>
-                <span>شهرستان انتخاب‌شده</span>
+                <span>{t('yazdrud.map.legendSelected')}</span>
               </div>
             </div>
 
@@ -382,7 +383,7 @@ export default function Map({ fontSizeScale }: MapProps) {
                   <polygon points="0,-14 -4.5,2 0,-2 4.5,2" fill="#1F3A5F" />
                   <polygon points="0,14 -3.5,-1 0,2 3.5,-1" fill="#C98A5A" fillOpacity="0.7" />
                   <text x="0" y="-17" textAnchor="middle" className="text-[8px] font-black fill-[#1F3A5F]">N</text>
-                  <text x="0" y="22" textAnchor="middle" className="text-[7px] font-bold fill-[#6B5B4F]">جنوب</text>
+                  <text x="0" y="22" textAnchor="middle" className="text-[7px] font-bold fill-[#6B5B4F]">{t('yazdrud.map.compassSouth')}</text>
                 </g>
 
                 {/* Scale Bar - 0, 25km, 50km, 100km */}
@@ -393,17 +394,17 @@ export default function Map({ fontSizeScale }: MapProps) {
                   <line x1="32.5" y1="-3" x2="32.5" y2="3" stroke="#3A3A3A" strokeWidth="1.2" />
                   <line x1="65" y1="-3" x2="65" y2="3" stroke="#3A3A3A" strokeWidth="1.4" />
                   <line x1="130" y1="-4" x2="130" y2="4" stroke="#3A3A3A" strokeWidth="1.8" />
-                  <text x="0" y="14" textAnchor="middle" className="text-[7px] fill-[#3A3A3A] font-bold">۰</text>
-                  <text x="32.5" y="14" textAnchor="middle" className="text-[7px] fill-[#3A3A3A] font-bold">۲۵</text>
-                  <text x="65" y="14" textAnchor="middle" className="text-[7px] fill-[#3A3A3A] font-bold">۵۰</text>
-                  <text x="130" y="14" textAnchor="middle" className="text-[7px] fill-[#3A3A3A] font-bold">۱۰۰ کم</text>
+                  <text x="0" y="14" textAnchor="middle" className="text-[7px] fill-[#3A3A3A] font-bold">{t('yazdrud.map.scale0')}</text>
+                  <text x="32.5" y="14" textAnchor="middle" className="text-[7px] fill-[#3A3A3A] font-bold">{t('yazdrud.map.scale25')}</text>
+                  <text x="65" y="14" textAnchor="middle" className="text-[7px] fill-[#3A3A3A] font-bold">{t('yazdrud.map.scale50')}</text>
+                  <text x="130" y="14" textAnchor="middle" className="text-[7px] fill-[#3A3A3A] font-bold">{t('yazdrud.map.scale100')}</text>
                 </g>
               </svg>
             </div>
 
             <p className="text-[11px] font-semibold text-gray-500 mt-3 flex items-center gap-1">
               <i className="fa-solid fa-circle-info text-[#2A9D8F]"></i>
-              <span>با کلیک روی هر شهرستان، آمار دقیق آن نمایش داده می‌شود</span>
+              <span>{t('yazdrud.map.clickHint')}</span>
             </p>
           </div>
 
@@ -418,7 +419,7 @@ export default function Map({ fontSizeScale }: MapProps) {
                 <div className="border-b border-white/10 pb-3">
                   <div className="flex items-center gap-2 mb-1">
                     <span className="w-2.5 h-6 bg-[#2A9D8F] rounded-sm"></span>
-                    <h4 className="text-xl font-black text-[#E7D3B1]">شهرستان {selectedCounty.name}</h4>
+                    <h4 className="text-xl font-black text-[#E7D3B1]">{t('yazdrud.map.countyName', { name: selectedCounty.name })}</h4>
                   </div>
                   <p className="text-xs text-gray-300 font-medium leading-relaxed">
                     {selectedCounty.description}
@@ -431,29 +432,29 @@ export default function Map({ fontSizeScale }: MapProps) {
                     <strong className="text-lg font-black font-mono block text-[#E7D3B1]">
                       {selectedCounty.roadProjects.toLocaleString('fa-IR')}
                     </strong>
-                    <span className="text-[9px] text-gray-300 font-bold block">طرح راه‌سازی</span>
+                    <span className="text-[9px] text-gray-300 font-bold block">{t('yazdrud.map.roadPlan')}</span>
                   </div>
                   <div className="bg-white/5 rounded-xl p-3 border border-white/5 text-center hover:bg-white/10 transition-colors">
                     <i className="fa-solid fa-hotel text-[#2A9D8F] text-lg mb-1 block"></i>
                     <strong className="text-lg font-black font-mono block text-white">
                       {selectedCounty.housingUnits.toLocaleString('fa-IR')}
                     </strong>
-                    <span className="text-[9px] text-gray-300 font-bold block">واحد مسکن</span>
+                    <span className="text-[9px] text-gray-300 font-bold block">{t('yazdrud.map.housingUnit')}</span>
                   </div>
                   <div className="bg-white/5 rounded-xl p-3 border border-white/5 text-center hover:bg-white/10 transition-colors">
                     <i className="fa-solid fa-file-invoice text-[#C98A5A] text-lg mb-1 block"></i>
                     <strong className="text-lg font-black font-mono block text-[#E7D3B1]">
                       {selectedCounty.urbanPlans.toLocaleString('fa-IR')}
                     </strong>
-                    <span className="text-[9px] text-gray-300 font-bold block">طرح تفصیلی</span>
+                    <span className="text-[9px] text-gray-300 font-bold block">{t('yazdrud.map.urbanPlan')}</span>
                   </div>
                 </div>
 
                 <div className="space-y-3 bg-white/5 p-4 rounded-2xl border border-white/5">
-                  <span className="text-xs font-bold text-[#E7D3B1] block">شاخص پیشرفت پروژه‌ها</span>
+                  <span className="text-xs font-bold text-[#E7D3B1] block">{t('yazdrud.map.progressIndex')}</span>
                   <div className="space-y-1">
                     <div className="flex justify-between text-[10px] font-bold">
-                      <span className="text-gray-300">راه‌سازی و بزرگراه</span>
+                      <span className="text-gray-300">{t('yazdrud.map.roadProgress')}</span>
                       <span className="font-mono text-[#E7D3B1]">
                         {selectedCounty.roadProgress.toLocaleString('fa-IR')}٪
                       </span>
@@ -464,7 +465,7 @@ export default function Map({ fontSizeScale }: MapProps) {
                   </div>
                   <div className="space-y-1">
                     <div className="flex justify-between text-[10px] font-bold">
-                      <span className="text-gray-300">مسکن ملی</span>
+                      <span className="text-gray-300">{t('yazdrud.map.housingProgress')}</span>
                       <span className="font-mono text-white">
                         {selectedCounty.housingProgress.toLocaleString('fa-IR')}٪
                       </span>
@@ -475,7 +476,7 @@ export default function Map({ fontSizeScale }: MapProps) {
                   </div>
                   <div className="space-y-1">
                     <div className="flex justify-between text-[10px] font-bold">
-                      <span className="text-gray-300">شهرسازی و طرح‌های تفصیلی</span>
+                      <span className="text-gray-300">{t('yazdrud.map.urbanProgress')}</span>
                       <span className="font-mono text-[#E7D3B1]">
                         {selectedCounty.urbanProgress.toLocaleString('fa-IR')}٪
                       </span>
@@ -487,17 +488,17 @@ export default function Map({ fontSizeScale }: MapProps) {
                 </div>
 
                 <button
-                  onClick={() => alert(`ثبت نام یا بررسی اراضی شهرستان ${selectedCounty.name} از طریق میز خدمت بخش خدمات الکترونیک قابل اقدام است.`)}
+                  onClick={() => alert(t('yazdrud.map.landRequestAlert', { name: selectedCounty.name }))}
                   className="w-full py-3 rounded-xl bg-[#2A9D8F] hover:bg-[#2A9D8F]/90 text-white font-bold text-xs transition-all flex items-center justify-center gap-1.5 shadow-lg hover:shadow-xl cursor-pointer group"
                 >
                   <i className="fa-solid fa-file-shield group-hover:scale-110 transition-transform"></i>
-                  <span>درخواست تخصیص اراضی در {selectedCounty.name}</span>
+                  <span>{t('yazdrud.map.landRequest', { name: selectedCounty.name })}</span>
                 </button>
               </div>
             ) : dataLoading ? (
               <div className="flex flex-col items-center justify-center text-center h-full text-gray-400 space-y-2 relative z-10">
                 <div className="w-8 h-8 border-2 border-gray-400 border-t-white rounded-full animate-spin"></div>
-                <p className="text-xs font-bold">در حال بارگذاری...</p>
+                <p className="text-xs font-bold">{t('yazdrud.map.loading')}</p>
               </div>
             ) : dataError ? (
               <div className="flex flex-col items-center justify-center text-center h-full text-gray-400 space-y-2 relative z-10">
@@ -507,16 +508,16 @@ export default function Map({ fontSizeScale }: MapProps) {
             ) : (
               <div className="flex flex-col items-center justify-center text-center h-full text-gray-400 space-y-2 relative z-10">
                 <i className="fa-solid fa-map-marked-alt text-4xl text-gray-500 animate-pulse"></i>
-                <p className="text-xs font-bold">برای مشاهده آمار، شهرستان را انتخاب کنید</p>
+                <p className="text-xs font-bold">{t('yazdrud.map.selectCounty')}</p>
               </div>
             )}
 
             <div className="border-t border-white/10 pt-3 mt-4 text-[10px] text-gray-400 font-mono flex justify-between relative z-10">
               <span className="flex items-center gap-1">
                 <span className="w-1.5 h-1.5 bg-green-400 rounded-full animate-pulse"></span>
-                بروزرسانی: امروز
+                {t('yazdrud.map.updatedToday')}
               </span>
-              <span>روابط عمومی راه و شهرسازی یزد</span>
+              <span>{t('yazdrud.map.publicRelations')}</span>
             </div>
           </div>
         </div>
