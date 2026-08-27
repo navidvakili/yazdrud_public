@@ -12,6 +12,7 @@ import LandAllocationPage from './components/pages/LandAllocationPage';
 import UrbanPlanningPage from './components/pages/UrbanPlanningPage';
 import RoadsTransportPage from './components/pages/RoadsTransportPage';
 import ServicesPage from './components/pages/ServicesPage';
+import FormPage from './components/pages/FormPage';
 import { ActivePage } from './types';
 import {
   resolveRoute,
@@ -28,21 +29,25 @@ export default function App() {
   const [currentPage, setCurrentPage] = useState<ActivePage>('home');
   const [selectedNewsId, setSelectedNewsId] = useState<number | null>(null);
   const [selectedServiceId, setSelectedServiceId] = useState<number | null>(null);
+  const [selectedFormSlug, setSelectedFormSlug] = useState<string | null>(null);
 
   // ========== مسیریابی مبتنی بر URL ==========
 
   /** تنظیم صفحه و متا از روی RouteKey */
-  const applyRoute = (routeKey: RouteKey, extra?: { newsId?: number; newsTitle?: string }) => {
+  const applyRoute = (routeKey: RouteKey, extra?: { newsId?: number; newsTitle?: string; formSlug?: string }) => {
     setCurrentPage(routeKey as ActivePage);
     if (routeKey === 'news') {
       setSelectedNewsId(extra?.newsId ?? null);
+    }
+    if (routeKey === 'form') {
+      setSelectedFormSlug(extra?.formSlug ?? null);
     }
     updatePageMeta(routeKey, extra?.newsTitle || undefined);
     updateCanonical(buildRoute(routeKey, extra));
   };
 
   /** به‌روزرسانی URL بدون رفرش */
-  const pushUrl = (routeKey: RouteKey, extra?: { newsId?: number; newsTitle?: string }) => {
+  const pushUrl = (routeKey: RouteKey, extra?: { newsId?: number; newsTitle?: string; formSlug?: string }) => {
     const url = buildRoute(routeKey, extra);
     window.history.pushState({ page: routeKey, ...extra }, '', url);
     applyRoute(routeKey, extra);
@@ -51,14 +56,16 @@ export default function App() {
   /** مقداردهی اولیه از URL */
   useEffect(() => {
     const initial = getInitialRoute();
-    applyRoute(initial.page, initial.newsId ? { newsId: initial.newsId } : undefined);
+    applyRoute(initial.page, initial.newsId ? { newsId: initial.newsId } : { formSlug: initial.formSlug });
     setSelectedNewsId(initial.newsId ?? null);
+    setSelectedFormSlug(initial.formSlug ?? null);
 
     // گوش دادن به دکمه‌های بازگشت/جلو مرورگر
     const handlePopState = (e: PopStateEvent) => {
       const route = resolveRoute(window.location.pathname);
-      applyRoute(route.page, route.newsId ? { newsId: route.newsId } : undefined);
+      applyRoute(route.page, route.newsId ? { newsId: route.newsId } : { formSlug: route.formSlug });
       setSelectedNewsId(route.newsId ?? null);
+      setSelectedFormSlug(route.formSlug ?? null);
       window.scrollTo({ top: 0, behavior: 'smooth' });
     };
     window.addEventListener('popstate', handlePopState);
@@ -66,9 +73,12 @@ export default function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const handleNavigate = (pageOrSection: string, itemId?: number, itemTitle?: string) => {
+  const handleNavigate = (pageOrSection: string, itemId?: number, itemTitle?: string, formSlug?: string) => {
     if (pageOrSection === 'news' || pageOrSection === 'news-archive') {
       pushUrl('news', itemId ? { newsId: itemId, newsTitle: itemTitle } : undefined);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    } else if (pageOrSection === 'form' && formSlug) {
+      pushUrl('form', { formSlug });
       window.scrollTo({ top: 0, behavior: 'smooth' });
     } else if (pageOrSection === 'services' || pageOrSection === 'e-services') {
       pushUrl('services', itemId ? { newsId: itemId } : undefined);
@@ -195,6 +205,16 @@ export default function App() {
             fontSizeScale={fontSizeScale}
             onNavigate={handleNavigate}
             initialServiceId={selectedServiceId}
+          />
+        </main>
+      )}
+
+      {currentPage === 'form' && (
+        <main className="flex-grow z-10">
+          <FormPage
+            fontSizeScale={fontSizeScale}
+            onNavigate={(pg) => handleNavigate(pg)}
+            slug={selectedFormSlug || ''}
           />
         </main>
       )}

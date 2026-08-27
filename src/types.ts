@@ -1,4 +1,4 @@
-export type ActivePage = 'home' | 'news' | 'land-allocation' | 'urban-planning' | 'roads-transport' | 'services';
+export type ActivePage = 'home' | 'news' | 'land-allocation' | 'urban-planning' | 'roads-transport' | 'services' | 'form';
 
 export interface NewsComment {
   id: number;

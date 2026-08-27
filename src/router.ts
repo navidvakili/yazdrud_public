@@ -2,7 +2,7 @@
 // مسیریاب سئو محور — آدرس‌های تمیز و اختصاصی برای هر صفحه
 // ============================================================
 
-export type RouteKey = 'home' | 'news' | 'land-allocation' | 'urban-planning' | 'roads-transport' | 'services';
+export type RouteKey = 'home' | 'news' | 'land-allocation' | 'urban-planning' | 'roads-transport' | 'services' | 'form';
 
 /**
  * نگاشت مسیرهای سئو — هر کلید صفحه به یک آدرس فارسی اختصاصی
@@ -14,6 +14,7 @@ export const ROUTES: Record<RouteKey, string> = {
   'urban-planning': '/شهرسازی-و-معماری',
   'roads-transport': '/راه-و-حمل-و-نقل',
   services: '/خدمات',
+  form: '/فرم',
 };
 
 /** عنوان فارسی هر صفحه برای تگ title */
@@ -24,6 +25,7 @@ export const PAGE_TITLES: Record<RouteKey, string> = {
   'urban-planning': 'شهرسازی و معماری',
   'roads-transport': 'راه و حمل‌ونقل',
   services: 'خدمات الکترونیک',
+  form: 'فرم آنلاین',
 };
 
 /** توضیحات متای هر صفحه برای SEO */
@@ -34,6 +36,7 @@ export const PAGE_DESCRIPTIONS: Record<RouteKey, string> = {
   'urban-planning': 'اطلاع از طرح‌های توسعه شهری، ضوابط شهرسازی، پروانه‌های ساختمانی و معماری شهری در استان یزد',
   'roads-transport': 'آخرین وضعیت پروژه‌های راه‌سازی، حمل‌ونقل جاده‌ای، آزادراه‌ها و محورهای مواصلاتی استان یزد',
   services: 'سامانه خدمات الکترونیک — استعلام، پیگیری درخواست‌ها و خدمات غیرحضوری اداره کل راه و شهرسازی استان یزد',
+  form: 'تکمیل فرم آنلاین اداره کل راه و شهرسازی استان یزد',
 };
 
 /** نگاشت معکوس — از مسیر URL به کلید صفحه */
@@ -53,6 +56,7 @@ export interface RouteResult {
   page: RouteKey;
   newsId?: number;
   newsSlug?: string;
+  formSlug?: string;
 }
 
 export function resolveRoute(path: string): RouteResult {
@@ -80,6 +84,15 @@ export function resolveRoute(path: string): RouteResult {
     };
   }
 
+  // فرم عمومی: /فرم/{slug}
+  const formMatch = normalized.match(/^\/فرم\/([^/]+)$/);
+  if (formMatch) {
+    return {
+      page: 'form',
+      formSlug: decodeURIComponent(formMatch[1]),
+    };
+  }
+
   // تطابق دقیق مسیر
   if (PATH_TO_KEY.has(normalized)) {
     return { page: PATH_TO_KEY.get(normalized)! };
@@ -92,12 +105,15 @@ export function resolveRoute(path: string): RouteResult {
 /**
  * تولید مسیر URL از روی صفحه و پارامترهای اختیاری
  */
-export function buildRoute(page: RouteKey, params?: { newsId?: number; newsTitle?: string }): string {
+export function buildRoute(page: RouteKey, params?: { newsId?: number; newsTitle?: string; formSlug?: string }): string {
   if (params?.newsId) {
     const slug = params.newsTitle
       ? params.newsTitle.replace(/\s+/g, '-').replace(/[^\w\u0600-\u06FF\s-]/g, '').trim()
       : 'مشاهده-خبر';
     return `/اخبار/${params.newsId}/${slug}`;
+  }
+  if (page === 'form' && params?.formSlug) {
+    return `/فرم/${params.formSlug}`;
   }
   return ROUTES[page];
 }

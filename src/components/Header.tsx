@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import i18n from '../i18n';
+import { API } from '../shared-utils';
+import { ROUTES, RouteKey } from '../router';
 
 interface HeaderProps {
   fontSizeScale: number;
@@ -10,6 +12,19 @@ interface HeaderProps {
   setIsHighContrast: (contrast: boolean) => void;
   onNavigate: (section: string) => void;
 }
+
+/** آیتم منوی پویا — همان‌طور که از /api/navigation/public می‌آید */
+interface PublicNavItem {
+  id: string;
+  title: string;
+  targetUrl: string;
+  target?: '_self' | '_blank';
+  children?: PublicNavItem[];
+}
+
+const PATH_TO_ROUTE_KEY = new Map<string, RouteKey>(
+  Object.entries(ROUTES).map(([key, path]) => [path, key as RouteKey])
+);
 
 export default function Header({
   fontSizeScale,
@@ -48,7 +63,9 @@ export default function Header({
     };
   }, []);
 
-  const menuItems = [
+  // منوی ثابت پیش‌فرض — همیشه در دسترس، حتی اگر منویی هنوز از «مدیریت و ساخت
+  // ناوبری» منتشر نشده باشد یا واکشی آن با خطا مواجه شود.
+  const fallbackMenuItems: { label: string; id: string }[] = [
     { label: t('yazdrud.header.menuHome'), id: 'home' },
     { label: t('yazdrud.header.menuServices'), id: 'services' },
     { label: t('yazdrud.header.menuLandAllocation'), id: 'land-allocation' },
@@ -58,6 +75,44 @@ export default function Header({
     { label: t('yazdrud.header.menuMap'), id: 'interactive-map' },
     { label: t('yazdrud.header.menuContact'), id: 'footer' },
   ];
+
+  // منوی پویا — در صورت انتشار یک منو با موقعیت «header-main-menu» از طریق
+  // ماژول «مدیریت و ساخت ناوبری»، جایگزین منوی ثابت بالا می‌شود.
+  const [dynamicItems, setDynamicItems] = useState<PublicNavItem[] | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    API<{ data: { menus: Record<string, { items: PublicNavItem[] }> } }>('navigation/public')
+      .then((res) => {
+        if (cancelled) return;
+        const items = res?.data?.menus?.['header-main-menu']?.items;
+        if (Array.isArray(items) && items.length > 0) setDynamicItems(items);
+      })
+      .catch(() => {
+        // بی‌صدا نادیده گرفته می‌شود — منوی ثابت به‌عنوان fallback همچنان کار می‌کند
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  interface ResolvedMenuItem {
+    label: string;
+    onClick?: () => void;
+    href?: string;
+    target?: '_self' | '_blank';
+  }
+
+  const resolvedMenuItems: ResolvedMenuItem[] =
+    dynamicItems && dynamicItems.length > 0
+      ? dynamicItems.map((item) => {
+          const matchedKey = PATH_TO_ROUTE_KEY.get(item.targetUrl);
+          if (matchedKey) {
+            return { label: item.title, onClick: () => onNavigate(matchedKey) };
+          }
+          return { label: item.title, href: item.targetUrl, target: item.target || '_self' };
+        })
+      : fallbackMenuItems.map((item) => ({ label: item.label, onClick: () => onNavigate(item.id) }));
 
   const toggleHighContrast = () => {
     const nextState = !isHighContrast;
@@ -189,15 +244,27 @@ export default function Header({
 
         {/* Desktop Navigation Menu */}
         <nav className="hidden lg:flex items-center gap-1 xl:gap-2">
-          {menuItems.map((item) => (
-            <button
-              key={item.id}
-              onClick={() => onNavigate(item.id)}
-              className="px-3 py-2 text-sm font-bold rounded-lg hover:bg-white/10 hover:text-[#E7D3B1] active:scale-95 transition-all text-white/95"
-            >
-              {item.label}
-            </button>
-          ))}
+          {resolvedMenuItems.map((item, i) =>
+            item.href ? (
+              <a
+                key={i}
+                href={item.href}
+                target={item.target}
+                rel={item.target === '_blank' ? 'noopener noreferrer' : undefined}
+                className="px-3 py-2 text-sm font-bold rounded-lg hover:bg-white/10 hover:text-[#E7D3B1] active:scale-95 transition-all text-white/95"
+              >
+                {item.label}
+              </a>
+            ) : (
+              <button
+                key={i}
+                onClick={item.onClick}
+                className="px-3 py-2 text-sm font-bold rounded-lg hover:bg-white/10 hover:text-[#E7D3B1] active:scale-95 transition-all text-white/95"
+              >
+                {item.label}
+              </button>
+            )
+          )}
         </nav>
 
         {/* Mobile Hamburger Button */}
@@ -274,19 +341,33 @@ export default function Header({
 
               {/* Mobile Navigation Links */}
               <nav className="flex flex-col gap-2">
-                {menuItems.map((item) => (
-                  <button
-                    key={item.id}
-                    onClick={() => {
-                      setIsMobileMenuOpen(false);
-                      onNavigate(item.id);
-                    }}
-                    className="w-full text-right px-4 py-3 text-base font-bold text-white hover:bg-[#B76E4C] rounded-lg transition-colors flex items-center justify-between"
-                  >
-                    <span>{item.label}</span>
-                    <i className="fa-solid fa-chevron-left text-xs opacity-65"></i>
-                  </button>
-                ))}
+                {resolvedMenuItems.map((item, i) =>
+                  item.href ? (
+                    <a
+                      key={i}
+                      href={item.href}
+                      target={item.target}
+                      rel={item.target === '_blank' ? 'noopener noreferrer' : undefined}
+                      onClick={() => setIsMobileMenuOpen(false)}
+                      className="w-full text-right px-4 py-3 text-base font-bold text-white hover:bg-[#B76E4C] rounded-lg transition-colors flex items-center justify-between"
+                    >
+                      <span>{item.label}</span>
+                      <i className="fa-solid fa-chevron-left text-xs opacity-65"></i>
+                    </a>
+                  ) : (
+                    <button
+                      key={i}
+                      onClick={() => {
+                        setIsMobileMenuOpen(false);
+                        item.onClick?.();
+                      }}
+                      className="w-full text-right px-4 py-3 text-base font-bold text-white hover:bg-[#B76E4C] rounded-lg transition-colors flex items-center justify-between"
+                    >
+                      <span>{item.label}</span>
+                      <i className="fa-solid fa-chevron-left text-xs opacity-65"></i>
+                    </button>
+                  )
+                )}
               </nav>
             </div>
 
