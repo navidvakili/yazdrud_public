@@ -14,7 +14,7 @@ export const ROUTES: Record<RouteKey, string> = {
   'urban-planning': '/شهرسازی-و-معماری',
   'roads-transport': '/راه-و-حمل-و-نقل',
   services: '/خدمات',
-  form: '/فرم',
+  form: '/forms',
 };
 
 /** عنوان فارسی هر صفحه برای تگ title */
@@ -84,8 +84,8 @@ export function resolveRoute(path: string): RouteResult {
     };
   }
 
-  // فرم عمومی: /فرم/{slug}
-  const formMatch = normalized.match(/^\/فرم\/([^/]+)$/);
+  // فرم عمومی: /forms/{slug}
+  const formMatch = normalized.match(/^\/forms\/([^/]+)$/);
   if (formMatch) {
     return {
       page: 'form',
@@ -113,7 +113,7 @@ export function buildRoute(page: RouteKey, params?: { newsId?: number; newsTitle
     return `/اخبار/${params.newsId}/${slug}`;
   }
   if (page === 'form' && params?.formSlug) {
-    return `/فرم/${params.formSlug}`;
+    return `/forms/${params.formSlug}`;
   }
   return ROUTES[page];
 }
