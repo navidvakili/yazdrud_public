@@ -359,8 +359,8 @@ export default function FormPage({ fontSizeScale, onNavigate, slug }: FormPagePr
       const tok = securityTokens[field.id];
       return (
         <div key={field.id} className="space-y-2">
-          <label className="block text-xs font-bold text-[#1F3A5F]">
-            {field.label}
+          <label htmlFor={field.id} className="block text-xs font-bold text-[#1F3A5F]">
+            {field.label?.trim() || 'کد امنیتی'}
             {field.validation?.required && <span className="text-red-500 mr-1">*</span>}
           </label>
           <div className="flex items-center gap-3 flex-wrap">
@@ -380,6 +380,7 @@ export default function FormPage({ fontSizeScale, onNavigate, slug }: FormPagePr
               <i className="fa-solid fa-rotate-right text-xs"></i>
             </button>
             <input
+              id={field.id}
               type="text"
               value={securityValues[field.id] || ''}
               onChange={(e) => setSecurityValues((prev) => ({ ...prev, [field.id]: e.target.value }))}
@@ -393,9 +394,12 @@ export default function FormPage({ fontSizeScale, onNavigate, slug }: FormPagePr
       );
     }
 
+    // برخی فیلدها (وقتی ادمین متن برچسب را خالی گذاشته) label خالی دارند — بدون این
+    // fallback، تگ <label> رندر می‌شود ولی کاملاً خالی و نامرئی به نظر می‌رسد
+    const labelText = field.label?.trim() || field.placeholder?.trim() || 'این فیلد';
     const label = (
-      <label className="block text-xs font-bold text-[#1F3A5F]">
-        {field.label}
+      <label htmlFor={field.id} className="block text-xs font-bold text-[#1F3A5F]">
+        {labelText}
         {field.validation?.required && <span className="text-red-500 mr-1">*</span>}
       </label>
     );
@@ -404,6 +408,7 @@ export default function FormPage({ fontSizeScale, onNavigate, slug }: FormPagePr
     if (field.type === 'textarea') {
       control = (
         <textarea
+          id={field.id}
           rows={4}
           value={value || ''}
           disabled={field.disabled || field.readOnly}
@@ -416,6 +421,7 @@ export default function FormPage({ fontSizeScale, onNavigate, slug }: FormPagePr
     } else if (field.type === 'number' || field.type === 'currency' || field.type === 'percentage') {
       control = (
         <input
+          id={field.id}
           type="number"
           value={value ?? ''}
           disabled={field.disabled || field.readOnly}
@@ -430,6 +436,7 @@ export default function FormPage({ fontSizeScale, onNavigate, slug }: FormPagePr
     } else if (field.type === 'select') {
       control = (
         <select
+          id={field.id}
           value={value || ''}
           disabled={field.disabled || field.readOnly}
           onChange={(e) => setAnswer(field.id, e.target.value)}
@@ -520,6 +527,7 @@ export default function FormPage({ fontSizeScale, onNavigate, slug }: FormPagePr
       control = (
         <div className="flex items-center gap-3">
           <input
+            id={field.id}
             type="range"
             min={field.validation?.min ?? 0}
             max={field.validation?.max ?? 100}
@@ -592,6 +600,7 @@ export default function FormPage({ fontSizeScale, onNavigate, slug }: FormPagePr
     } else if (INPUT_TYPE_MAP[field.type]) {
       control = (
         <input
+          id={field.id}
           type={INPUT_TYPE_MAP[field.type]}
           value={value || ''}
           disabled={field.disabled || field.readOnly}
@@ -605,6 +614,7 @@ export default function FormPage({ fontSizeScale, onNavigate, slug }: FormPagePr
     } else if (TEXT_LIKE_TYPES.has(field.type)) {
       control = (
         <input
+          id={field.id}
           type="text"
           value={value || ''}
           disabled={field.disabled || field.readOnly}
@@ -619,6 +629,7 @@ export default function FormPage({ fontSizeScale, onNavigate, slug }: FormPagePr
       // Unsupported/exotic field type — plain text fallback keeps the form fully submittable
       control = (
         <input
+          id={field.id}
           type="text"
           value={value || ''}
           placeholder={field.placeholder}
