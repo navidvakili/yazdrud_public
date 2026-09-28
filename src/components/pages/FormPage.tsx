@@ -61,6 +61,9 @@ interface FormField {
   includeProvince?: boolean;
   includePostalCode?: boolean;
   includeGeoCoordinates?: boolean;
+  // Dropdown (select) specific
+  allowSearchOptions?: boolean;
+  allowCreateCustomOption?: boolean;
 }
 
 interface FormTheme {
@@ -331,6 +334,155 @@ const GeoMapPicker: React.FC<{
   }, [lat, lng]);
 
   return <div ref={containerRef} className="w-full h-56 rounded-xl overflow-hidden border border-gray-200" />;
+};
+
+const CUSTOM_OPTION_VALUE = '__custom_other__';
+
+/**
+ * فیلد منوی کشویی — هم حالت select ساده و هم دو تنظیم فرم‌ساز که قبلاً هیچ‌جا اعمال
+ * نمی‌شدند را پیاده می‌کند: allowSearchOptions (کمبوباکس با جستجو) و allowCreateCustomOption
+ * (گزینهٔ «سایر» که یک ورودی متنی آزاد باز می‌کند).
+ */
+const SelectField: React.FC<{
+  field: FormField;
+  value: any;
+  onChange: (v: any) => void;
+  accent: string;
+  baseInputClass: string;
+  disabled?: boolean;
+}> = ({ field, value, onChange, accent, baseInputClass, disabled }) => {
+  const options = field.options || [];
+  const allowCustom = !!field.allowCreateCustomOption;
+  const isSearchable = !!field.allowSearchOptions;
+
+  const matchedOption = options.find((o) => o.value === value);
+  const [customMode, setCustomMode] = useState(allowCustom && !!value && !matchedOption);
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState('');
+  const containerRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!isSearchable) return;
+    const handler = (e: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [isSearchable]);
+
+  const selectCustom = () => {
+    setCustomMode(true);
+    setOpen(false);
+    onChange('');
+  };
+  const selectOption = (v: string) => {
+    setCustomMode(false);
+    setOpen(false);
+    setSearch('');
+    onChange(v);
+  };
+
+  if (isSearchable) {
+    const filtered = options.filter((o) => o.label.toLowerCase().includes(search.toLowerCase()));
+    const displayText = customMode ? 'سایر (مقدار دلخواه)' : matchedOption?.label || '';
+    return (
+      <div className="space-y-2">
+        <div ref={containerRef} className="relative">
+          <button
+            id={field.id}
+            type="button"
+            disabled={disabled}
+            onClick={() => setOpen((o) => !o)}
+            className={`${baseInputClass} text-right flex items-center justify-between gap-2`}
+          >
+            <span className={displayText ? '' : 'text-gray-400'}>{displayText || '— انتخاب کنید —'}</span>
+            <i className="fa-solid fa-chevron-down text-[10px] text-gray-400 shrink-0"></i>
+          </button>
+          {open && (
+            <div className="absolute z-20 mt-1 w-full bg-white border border-gray-200 rounded-xl shadow-lg max-h-64 flex flex-col overflow-hidden">
+              <div className="p-2 border-b border-gray-100 shrink-0">
+                <input
+                  autoFocus
+                  type="text"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="جستجو در گزینه‌ها..."
+                  className="w-full px-3 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none"
+                  style={{ ['--tw-ring-color' as any]: accent }}
+                />
+              </div>
+              <div className="overflow-y-auto">
+                {filtered.length === 0 && <p className="p-3 text-xs text-gray-400 text-center">موردی یافت نشد</p>}
+                {filtered.map((opt) => (
+                  <button
+                    key={opt.id}
+                    type="button"
+                    onClick={() => selectOption(opt.value)}
+                    className="w-full text-right px-3 py-2 text-xs hover:bg-gray-50 block"
+                    style={opt.value === value ? { color: accent, fontWeight: 700 } : undefined}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+                {allowCustom && (
+                  <button
+                    type="button"
+                    onClick={selectCustom}
+                    className="w-full text-right px-3 py-2 text-xs hover:bg-gray-50 border-t border-gray-100 text-gray-500"
+                  >
+                    سایر (تایپ کنید)
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+        {customMode && (
+          <input
+            type="text"
+            autoFocus
+            value={value || ''}
+            disabled={disabled}
+            placeholder="مقدار دلخواه خود را بنویسید..."
+            onChange={(e) => onChange(e.target.value)}
+            className={baseInputClass}
+            style={{ ['--tw-ring-color' as any]: accent }}
+          />
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-2">
+      <select
+        id={field.id}
+        value={customMode ? CUSTOM_OPTION_VALUE : value || ''}
+        disabled={disabled}
+        onChange={(e) => (e.target.value === CUSTOM_OPTION_VALUE ? selectCustom() : selectOption(e.target.value))}
+        className={baseInputClass}
+        style={{ ['--tw-ring-color' as any]: accent }}
+      >
+        <option value="">— انتخاب کنید —</option>
+        {options.map((opt) => (
+          <option key={opt.id} value={opt.value}>{opt.label}</option>
+        ))}
+        {allowCustom && <option value={CUSTOM_OPTION_VALUE}>سایر (تایپ کنید)</option>}
+      </select>
+      {customMode && (
+        <input
+          type="text"
+          autoFocus
+          value={value || ''}
+          disabled={disabled}
+          placeholder="مقدار دلخواه خود را بنویسید..."
+          onChange={(e) => onChange(e.target.value)}
+          className={baseInputClass}
+          style={{ ['--tw-ring-color' as any]: accent }}
+        />
+      )}
+    </div>
+  );
 };
 
 export default function FormPage({ fontSizeScale, onNavigate, slug }: FormPageProps) {
@@ -825,19 +977,14 @@ export default function FormPage({ fontSizeScale, onNavigate, slug }: FormPagePr
       );
     } else if (field.type === 'select') {
       control = (
-        <select
-          id={field.id}
-          value={value || ''}
+        <SelectField
+          field={field}
+          value={value}
+          onChange={(v) => setAnswer(field.id, v)}
+          accent={accent}
+          baseInputClass={baseInputClass}
           disabled={field.disabled || field.readOnly}
-          onChange={(e) => setAnswer(field.id, e.target.value)}
-          className={baseInputClass}
-          style={{ ['--tw-ring-color' as any]: accent }}
-        >
-          <option value="">— انتخاب کنید —</option>
-          {(field.options || []).map((opt) => (
-            <option key={opt.id} value={opt.value}>{opt.label}</option>
-          ))}
-        </select>
+        />
       );
     } else if (field.type === 'multiselect') {
       const selected: string[] = Array.isArray(value) ? value : [];
