@@ -519,7 +519,7 @@ export default function FormPage({ fontSizeScale, onNavigate, slug }: FormPagePr
         }
       }
 
-      if (field.includePostalCode && v && typeof v === 'object' && v.postalCode) {
+      if (field.includePostalCode !== false && v && typeof v === 'object' && v.postalCode) {
         if (!/^\d{10}$/.test(v.postalCode)) {
           errors[field.id] = 'کد پستی باید دقیقاً ۱۰ رقم باشد.';
         }
@@ -855,7 +855,7 @@ export default function FormPage({ fontSizeScale, onNavigate, slug }: FormPagePr
             className={baseInputClass}
             style={{ ['--tw-ring-color' as any]: accent }}
           />
-          {field.includeProvince && (
+          {field.includeProvince !== false && (
             <div className="grid grid-cols-2 gap-2">
               <select
                 value={addr.province || ''}
@@ -878,7 +878,7 @@ export default function FormPage({ fontSizeScale, onNavigate, slug }: FormPagePr
               />
             </div>
           )}
-          {field.includePostalCode && (
+          {field.includePostalCode !== false && (
             <input
               type="text"
               inputMode="numeric"
@@ -891,7 +891,7 @@ export default function FormPage({ fontSizeScale, onNavigate, slug }: FormPagePr
               style={{ ['--tw-ring-color' as any]: accent }}
             />
           )}
-          {field.includeGeoCoordinates && (
+          {field.includeGeoCoordinates !== false && (
             <div className="space-y-2">
               <GeoMapPicker
                 lat={addr.lat}
