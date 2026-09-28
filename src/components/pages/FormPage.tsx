@@ -68,6 +68,9 @@ interface FormField {
   allowCreateCustomOption?: boolean;
   // Choice fields (radio/checkbox) layout
   choiceLayout?: 'vertical' | 'horizontal' | 'grid_2_col';
+  // Yes/No (two-state) field
+  yesLabel?: string;
+  noLabel?: string;
 }
 
 interface FormTheme {
@@ -1078,8 +1081,8 @@ export default function FormPage({ fontSizeScale, onNavigate, slug }: FormPagePr
           disabled={field.disabled || field.readOnly}
           onChange={(v) => setAnswer(field.id, v ? 'yes' : 'no')}
           accent={accent}
-          onLabel="بله"
-          offLabel="خیر"
+          onLabel={field.yesLabel || 'بله'}
+          offLabel={field.noLabel || 'خیر'}
         />
       );
     } else if (field.type === 'switch') {
