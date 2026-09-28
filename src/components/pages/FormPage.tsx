@@ -82,6 +82,10 @@ interface FormField {
   calendarType?: 'jalali' | 'gregorian';
   defaultDateOption?: 'none' | 'today' | 'custom';
   iconColor?: string;
+  // Rating
+  ratingIconType?: 'star' | 'heart' | 'emoji' | 'number';
+  startRatingLabel?: string;
+  endRatingLabel?: string;
 }
 
 interface FormTheme {
@@ -719,32 +723,41 @@ export default function FormPage({ fontSizeScale, onNavigate, slug }: FormPagePr
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [answers, calculatedFields]);
 
+  /** درخواست یک چالش امنیتی تازه از سرور — هم موقع بارگذاری اولیهٔ فرم استفاده می‌شود، هم موقع کلیک روی دکمهٔ رفرش */
+  const fetchChallenge = (field: FormField) => {
+    API<{ data: { token: string; image: string; expires_in: number } }>(
+      'forms/security-challenge/generate',
+      { type: field.securityType || 'image_captcha' },
+      'POST'
+    )
+      .then((res) => {
+        setSecurityTokens((prev) => ({ ...prev, [field.id]: { token: res.data.token, image: res.data.image } }));
+      })
+      .catch(() => {
+        /* Silent — verified authoritatively server-side on submit; user can retry via the button */
+      });
+  };
+
   // Generate a CAPTCHA-family challenge for each security field once the form loads
   useEffect(() => {
     securityFields.forEach((field) => {
       if (securityTokens[field.id]) return;
-      API<{ data: { token: string; image: string; expires_in: number } }>(
-        'forms/security-challenge/generate',
-        { type: field.securityType || 'image_captcha' },
-        'POST'
-      )
-        .then((res) => {
-          setSecurityTokens((prev) => ({ ...prev, [field.id]: { token: res.data.token, image: res.data.image } }));
-        })
-        .catch(() => {
-          /* Silent — verified authoritatively server-side on submit; user can retry via the button */
-        });
+      fetchChallenge(field);
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [securityFields.map((f) => f.id).join(',')]);
 
   const refreshChallenge = (field: FormField) => {
+    // قبلاً این تابع فقط توکن قبلی را پاک می‌کرد و منتظر می‌ماند تا افکت بالا دوباره اجرا شود —
+    // ولی چون وابستگیِ آن افکت (فهرست شناسهٔ فیلدها) با پاک‌شدن یک توکن عوض نمی‌شود، افکت دوباره
+    // اجرا نمی‌شد و تصویر برای همیشه در حالت لودینگ می‌ماند. حالا درخواست تازه مستقیماً همین‌جا ارسال می‌شود.
     setSecurityTokens((prev) => {
       const next = { ...prev };
       delete next[field.id];
       return next;
     });
     setSecurityValues((prev) => ({ ...prev, [field.id]: '' }));
+    fetchChallenge(field);
   };
 
   const setAnswer = (fieldId: string, value: any) => {
@@ -1276,22 +1289,80 @@ export default function FormPage({ fontSizeScale, onNavigate, slug }: FormPagePr
         </div>
       );
     } else if (field.type === 'rating') {
+      const min = field.validation?.min ?? 1;
+      const max = field.validation?.max ?? 5;
       const rating = Number(value) || 0;
       const isFieldDisabled = field.disabled || field.readOnly;
+      const color = field.iconColor || accent;
+      const iconType = field.ratingIconType || 'star';
+      const range = Array.from({ length: Math.max(1, max - min + 1) }, (_, i) => min + i);
+
+      let ratingControl: React.ReactNode;
+      if (iconType === 'emoji') {
+        const mid = Math.round((min + max) / 2);
+        const emojiOptions = [{ v: min, e: '🙁' }, { v: mid, e: '😐' }, { v: max, e: '🙂' }];
+        ratingControl = (
+          <div className="flex gap-3">
+            {emojiOptions.map((opt) => (
+              <button
+                key={opt.v}
+                type="button"
+                disabled={isFieldDisabled}
+                onClick={() => setAnswer(field.id, opt.v)}
+                className={`text-2xl leading-none transition-transform hover:scale-110 disabled:cursor-not-allowed disabled:hover:scale-100 rounded-full p-1 ${rating === opt.v ? 'ring-2' : 'opacity-40'}`}
+                style={rating === opt.v ? { ['--tw-ring-color' as any]: color } : undefined}
+              >
+                {opt.e}
+              </button>
+            ))}
+          </div>
+        );
+      } else if (iconType === 'number') {
+        ratingControl = (
+          <div className="flex flex-wrap gap-1.5">
+            {range.map((n) => (
+              <button
+                key={n}
+                type="button"
+                disabled={isFieldDisabled}
+                onClick={() => setAnswer(field.id, n)}
+                className="w-8 h-8 rounded-lg text-xs font-bold border transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                style={rating === n ? { backgroundColor: color, borderColor: color, color: '#fff' } : { borderColor: '#E5E7EB', color: '#6B7280' }}
+              >
+                {n}
+              </button>
+            ))}
+          </div>
+        );
+      } else {
+        const iconClass = iconType === 'heart' ? 'fa-heart' : 'fa-star';
+        ratingControl = (
+          <div className="flex gap-1">
+            {range.map((n) => (
+              <button
+                key={n}
+                type="button"
+                disabled={isFieldDisabled}
+                onClick={() => setAnswer(field.id, n)}
+                className="text-2xl transition-transform hover:scale-110 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
+                style={{ color: n <= rating ? color : '#E5E7EB' }}
+              >
+                <i className={`fa-solid ${iconClass}`}></i>
+              </button>
+            ))}
+          </div>
+        );
+      }
+
       control = (
-        <div className="flex gap-1">
-          {[1, 2, 3, 4, 5].map((n) => (
-            <button
-              key={n}
-              type="button"
-              disabled={isFieldDisabled}
-              onClick={() => setAnswer(field.id, n)}
-              className="text-2xl transition-transform hover:scale-110 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
-              style={{ color: n <= rating ? accent : '#E5E7EB' }}
-            >
-              <i className="fa-solid fa-star"></i>
-            </button>
-          ))}
+        <div className="space-y-1">
+          {ratingControl}
+          {(field.startRatingLabel || field.endRatingLabel) && (
+            <div className="flex items-center justify-between text-[10px] text-gray-400">
+              <span>{field.startRatingLabel}</span>
+              <span>{field.endRatingLabel}</span>
+            </div>
+          )}
         </div>
       );
     } else if (field.type === 'slider') {
