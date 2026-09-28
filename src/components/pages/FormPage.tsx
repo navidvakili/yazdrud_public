@@ -66,6 +66,8 @@ interface FormField {
   // Dropdown (select) specific
   allowSearchOptions?: boolean;
   allowCreateCustomOption?: boolean;
+  // Choice fields (radio/checkbox) layout
+  choiceLayout?: 'vertical' | 'horizontal' | 'grid_2_col';
 }
 
 interface FormTheme {
@@ -347,6 +349,44 @@ const CUSTOM_OPTION_VALUE = '__custom_other__';
  * نمی‌شدند را پیاده می‌کند: allowSearchOptions (کمبوباکس با جستجو) و allowCreateCustomOption
  * (گزینهٔ «سایر» که یک ورودی متنی آزاد باز می‌کند).
  */
+/** ترکیب کلاس چیدمان گزینه‌های فیلدهای چندگزینه‌ای (رادیو/چک‌باکس گروهی) بر اساس تنظیم choiceLayout */
+const choiceLayoutClass = (layout?: 'vertical' | 'horizontal' | 'grid_2_col'): string =>
+  layout === 'horizontal' ? 'flex flex-wrap gap-4'
+    : layout === 'grid_2_col' ? 'grid grid-cols-2 gap-2'
+    : 'flex flex-col gap-2';
+
+/** کلید دو‌حالته (سوییچ) — برای فیلدهای yesno و switch به‌جای چک‌باکس ساده */
+const ToggleSwitch: React.FC<{
+  id?: string;
+  checked: boolean;
+  onChange: (v: boolean) => void;
+  accent: string;
+  disabled?: boolean;
+  onLabel?: string;
+  offLabel?: string;
+}> = ({ id, checked, onChange, accent, disabled, onLabel, offLabel }) => (
+  <div className="flex items-center gap-3">
+    <button
+      id={id}
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      disabled={disabled}
+      onClick={() => onChange(!checked)}
+      className="relative w-12 h-6 rounded-full transition-colors shrink-0 disabled:opacity-50 disabled:cursor-not-allowed"
+      style={{ backgroundColor: checked ? accent : '#D1D5DB' }}
+    >
+      <span
+        className="absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-all"
+        style={{ right: checked ? '2px' : '26px' }}
+      />
+    </button>
+    {(onLabel || offLabel) && (
+      <span className="text-xs font-bold text-[#1F3A5F]">{checked ? onLabel : offLabel}</span>
+    )}
+  </div>
+);
+
 const SelectField: React.FC<{
   field: FormField;
   value: any;
@@ -1030,13 +1070,34 @@ export default function FormPage({ fontSizeScale, onNavigate, slug }: FormPagePr
           })}
         </div>
       );
-    } else if (field.type === 'radio' || field.type === 'yesno') {
-      const opts = field.type === 'yesno'
-        ? [{ id: 'yes', label: 'بله', value: 'yes' }, { id: 'no', label: 'خیر', value: 'no' }]
-        : (field.options || []);
+    } else if (field.type === 'yesno') {
       control = (
-        <div className="flex flex-wrap gap-4">
-          {opts.map((opt) => (
+        <ToggleSwitch
+          id={field.id}
+          checked={value === 'yes'}
+          disabled={field.disabled || field.readOnly}
+          onChange={(v) => setAnswer(field.id, v ? 'yes' : 'no')}
+          accent={accent}
+          onLabel="بله"
+          offLabel="خیر"
+        />
+      );
+    } else if (field.type === 'switch') {
+      control = (
+        <ToggleSwitch
+          id={field.id}
+          checked={!!value}
+          disabled={field.disabled || field.readOnly}
+          onChange={(v) => setAnswer(field.id, v)}
+          accent={accent}
+          onLabel={field.placeholder || 'فعال'}
+          offLabel="غیرفعال"
+        />
+      );
+    } else if (field.type === 'radio') {
+      control = (
+        <div className={choiceLayoutClass(field.choiceLayout)}>
+          {(field.options || []).map((opt) => (
             <label key={opt.id} className="flex items-center gap-2 text-xs font-bold text-[#1F3A5F] cursor-pointer">
               <input
                 type="radio"
@@ -1051,19 +1112,28 @@ export default function FormPage({ fontSizeScale, onNavigate, slug }: FormPagePr
           ))}
         </div>
       );
-    } else if (field.type === 'checkbox' || field.type === 'switch') {
+    } else if (field.type === 'checkbox') {
+      const selected: string[] = Array.isArray(value) ? value : [];
       control = (
-        <label className="flex items-center gap-2 text-xs font-bold text-[#1F3A5F] cursor-pointer">
-          <input
-            type="checkbox"
-            checked={!!value}
-            disabled={field.disabled || field.readOnly}
-            onChange={(e) => setAnswer(field.id, e.target.checked)}
-            style={{ accentColor: accent }}
-          />
-          {field.validation?.required && <span className="text-red-500">*</span>}
-          {field.placeholder || 'تأیید می‌کنم'}
-        </label>
+        <div className={choiceLayoutClass(field.choiceLayout)}>
+          {(field.options || []).map((opt) => {
+            const isChecked = selected.includes(opt.value);
+            return (
+              <label key={opt.id} className="flex items-center gap-2 text-xs font-bold text-[#1F3A5F] cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={isChecked}
+                  disabled={field.disabled || field.readOnly}
+                  onChange={() =>
+                    setAnswer(field.id, isChecked ? selected.filter((v) => v !== opt.value) : [...selected, opt.value])
+                  }
+                  style={{ accentColor: accent }}
+                />
+                {opt.label}
+              </label>
+            );
+          })}
+        </div>
       );
     } else if (field.type === 'rating') {
       const rating = Number(value) || 0;
@@ -1297,7 +1367,7 @@ export default function FormPage({ fontSizeScale, onNavigate, slug }: FormPagePr
 
     return (
       <div key={field.id} className="space-y-1.5">
-        {field.type !== 'checkbox' && field.type !== 'switch' && label}
+        {label}
         {control}
         {field.helpText && <p className="text-[11px] text-gray-400">{field.helpText}</p>}
         {error && <p className="text-[11px] text-red-500 font-bold">{error}</p>}
