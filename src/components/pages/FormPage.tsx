@@ -36,6 +36,8 @@ interface FormField {
     maxLength?: number;
     min?: number;
     max?: number;
+    allowedExtensions?: string[];
+    maxFileSizeMb?: number;
   };
 }
 
@@ -79,6 +81,9 @@ export default function FormPage({ fontSizeScale, onNavigate, slug }: FormPagePr
   const [securityValues, setSecurityValues] = useState<Record<string, string>>({});
   const [securityTokens, setSecurityTokens] = useState<Record<string, { token: string; image: string }>>({});
   const [uploading, setUploading] = useState<Record<string, boolean>>({});
+  // فایل‌های انتخاب‌شده فقط لحظهٔ ارسال نهایی فرم آپلود می‌شوند، نه بلافاصله هنگام انتخاب —
+  // اگر کاربر فرم را رها کند، هیچ فایلی روی سرور باقی نمی‌ماند.
+  const [pendingFiles, setPendingFiles] = useState<Record<string, File>>({});
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
@@ -174,24 +179,61 @@ export default function FormPage({ fontSizeScale, onNavigate, slug }: FormPagePr
     });
   };
 
-  const handleFileSelect = async (field: FormField, file: File | null) => {
-    if (!file || !form) return;
-    setUploading((prev) => ({ ...prev, [field.id]: true }));
-    try {
-      const formData = new FormData();
-      formData.append('file', file);
-      const res = await fetch(`${API_BASE_URL}/forms/${form.id}/upload-answer-file`, {
-        method: 'POST',
-        body: formData,
-      });
-      if (!res.ok) throw new Error();
-      const json = await res.json();
-      setAnswer(field.id, json.data?.url || null);
-    } catch {
-      setFieldErrors((prev) => ({ ...prev, [field.id]: 'آپلود فایل ناموفق بود. دوباره تلاش کنید.' }));
-    } finally {
-      setUploading((prev) => ({ ...prev, [field.id]: false }));
+  /** پسوند فایل انتخاب‌شده را در همان لحظهٔ انتخاب (پیش از ارسال فرم) با تنظیمات فیلد می‌سنجد */
+  const validateSelectedFile = (field: FormField, file: File): string | null => {
+    const allowed = field.validation?.allowedExtensions;
+    if (allowed && allowed.length > 0) {
+      const ext = '.' + (file.name.split('.').pop() || '').toLowerCase();
+      const normalized = allowed.map((e) => (e.startsWith('.') ? e.toLowerCase() : `.${e.toLowerCase()}`));
+      if (!normalized.includes(ext)) {
+        return `فرمت مجاز: ${normalized.join('، ')}`;
+      }
     }
+    const maxMb = field.validation?.maxFileSizeMb || 10;
+    if (file.size > maxMb * 1024 * 1024) {
+      return `حجم فایل نباید بیشتر از ${maxMb} مگابایت باشد.`;
+    }
+    return null;
+  };
+
+  // فایل فقط اعتبارسنجی و محلی نگه داشته می‌شود — آپلود واقعی در handleSubmit و فقط
+  // هنگام ارسال نهایی فرم انجام می‌شود (نه بلافاصله هنگام انتخاب فایل).
+  const handleFileSelect = (field: FormField, file: File | null) => {
+    if (!file) {
+      setPendingFiles((prev) => {
+        const next = { ...prev };
+        delete next[field.id];
+        return next;
+      });
+      setAnswer(field.id, null);
+      return;
+    }
+    const error = validateSelectedFile(field, file);
+    if (error) {
+      setFieldErrors((prev) => ({ ...prev, [field.id]: error }));
+      return;
+    }
+    setPendingFiles((prev) => ({ ...prev, [field.id]: file }));
+    // فقط به‌عنوان نشانگر محلی «این فیلد پر شده» برای اعتبارسنجی required — مقدار واقعی
+    // (URL) بعد از آپلود موفق در زمان ارسال فرم جایگزین می‌شود.
+    setAnswer(field.id, file.name);
+  };
+
+  /** آپلود واقعی یک فایل معلق به سرور — فقط از داخل handleSubmit فراخوانی می‌شود */
+  const uploadPendingFile = async (formId: number, fieldId: string, file: File): Promise<string> => {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('field_id', fieldId);
+    const res = await fetch(`${API_BASE_URL}/forms/${formId}/upload-answer-file`, {
+      method: 'POST',
+      body: formData,
+    });
+    if (!res.ok) {
+      const body = await res.json().catch(() => null);
+      throw new Error(body?.message || 'آپلود فایل ناموفق بود.');
+    }
+    const json = await res.json();
+    return json.data?.url;
   };
 
   const validate = (): boolean => {
@@ -232,11 +274,37 @@ export default function FormPage({ fontSizeScale, onNavigate, slug }: FormPagePr
 
     setSubmitting(true);
     try {
+      // فایل‌های انتخاب‌شده تا همین لحظه هنوز روی سرور آپلود نشده‌اند — فقط حالا که
+      // فرم واقعاً ارسال می‌شود، یکی‌یکی آپلود و URL واقعی آن‌ها جایگزین می‌شود.
+      const finalAnswers = { ...answers };
+      const pendingEntries = Object.entries(pendingFiles);
+      if (pendingEntries.length > 0) {
+        setUploading((prev) => {
+          const next = { ...prev };
+          pendingEntries.forEach(([fieldId]) => { next[fieldId] = true; });
+          return next;
+        });
+        try {
+          for (const [fieldId, file] of pendingEntries) {
+            finalAnswers[fieldId] = await uploadPendingFile(form.id, fieldId, file);
+          }
+        } catch (uploadErr: any) {
+          setSubmitError(uploadErr?.message || 'آپلود یکی از فایل‌ها ناموفق بود. دوباره تلاش کنید.');
+          return;
+        } finally {
+          setUploading((prev) => {
+            const next = { ...prev };
+            pendingEntries.forEach(([fieldId]) => { next[fieldId] = false; });
+            return next;
+          });
+        }
+      }
+
       const completionSeconds = Math.round((Date.now() - startedAtRef.current) / 1000);
       const res = await API<{ data: { tracking_code: string; score_total: number | null; grade_label: string | null } }>(
         `forms/${form.id}/submit`,
         {
-          answers,
+          answers: finalAnswers,
           security_challenges: securityChallenges,
           completion_time_seconds: completionSeconds,
         },
@@ -459,20 +527,29 @@ export default function FormPage({ fontSizeScale, onNavigate, slug }: FormPagePr
         </div>
       );
     } else if (field.type === 'file' || field.type === 'image') {
+      const allowedExt = field.validation?.allowedExtensions;
+      const acceptAttr = allowedExt && allowedExt.length > 0
+        ? allowedExt.map((e) => (e.startsWith('.') ? e : `.${e}`)).join(',')
+        : field.type === 'image' ? 'image/*' : undefined;
+      const hint = [
+        allowedExt && allowedExt.length > 0 ? `فرمت‌های مجاز: ${allowedExt.join('، ')}` : null,
+        field.validation?.maxFileSizeMb ? `حداکثر حجم: ${field.validation.maxFileSizeMb} مگابایت` : null,
+      ].filter(Boolean).join(' — ');
       control = (
         <div>
           <input
             type="file"
-            accept={field.type === 'image' ? 'image/*' : undefined}
-            disabled={uploading[field.id]}
+            accept={acceptAttr}
+            disabled={uploading[field.id] || submitting}
             onChange={(e) => handleFileSelect(field, e.target.files?.[0] || null)}
             className="block w-full text-xs text-[#1F3A5F] file:ml-3 file:px-3 file:py-2 file:rounded-lg file:border-0 file:bg-[var(--file-bg)] file:text-white file:text-xs file:font-bold file:cursor-pointer cursor-pointer"
             style={{ ['--file-bg' as any]: accent }}
           />
+          {hint && !error && <p className="text-[10px] text-gray-400 mt-1">{hint}</p>}
           {uploading[field.id] && <p className="text-[11px] text-gray-400 mt-1">در حال آپلود...</p>}
-          {value && !uploading[field.id] && (
-            <p className="text-[11px] text-emerald-600 mt-1 flex items-center gap-1">
-              <i className="fa-solid fa-circle-check"></i> فایل با موفقیت آپلود شد
+          {pendingFiles[field.id] && !uploading[field.id] && (
+            <p className="text-[11px] text-teal-600 mt-1 flex items-center gap-1">
+              <i className="fa-solid fa-paperclip"></i> «{pendingFiles[field.id].name}» انتخاب شد — هنگام ارسال فرم آپلود می‌شود
             </p>
           )}
         </div>
