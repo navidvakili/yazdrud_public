@@ -42,6 +42,7 @@ interface FormField {
     maxFileSizeMb?: number;
     regexPattern?: string;
     customErrorMessage?: string;
+    phoneFormat?: 'iran_mobile' | 'iran_landline' | 'international' | 'custom';
   };
   // Text & textarea
   charTypeAllowed?: 'any' | 'persian_letters' | 'english_letters' | 'numeric' | 'alphanumeric';
@@ -82,16 +83,55 @@ interface FormDto {
   settings: FormSettings | null;
 }
 
-const TEXT_LIKE_TYPES = new Set(['text', 'email', 'phone', 'password', 'url', 'richtext', 'matrix', 'likert', 'ranking', 'cascading', 'qrcode', 'signature']);
+const TEXT_LIKE_TYPES = new Set(['text', 'email', 'password', 'url', 'richtext', 'matrix', 'likert', 'ranking', 'cascading', 'qrcode', 'signature']);
 const INPUT_TYPE_MAP: Record<string, string> = {
   email: 'email',
-  phone: 'tel',
   password: 'password',
   url: 'url',
   date: 'date',
   time: 'time',
   datetime: 'datetime-local',
   color: 'color',
+};
+
+/** ارقام فارسی/عربی را به ارقام لاتین تبدیل می‌کند — چون خیلی از موبایل‌ها با کیبورد فارسی رقم می‌فرستند */
+const toLatinDigits = (str: string): string =>
+  str
+    .replace(/[۰-۹]/g, (d) => String(d.charCodeAt(0) - '۰'.charCodeAt(0)))
+    .replace(/[٠-٩]/g, (d) => String(d.charCodeAt(0) - '٠'.charCodeAt(0)));
+
+/** پیکربندی مَسک و اعتبارسنجی برای هر «قالب و فرمت شماره» تعریف‌شده روی فیلد phone در فرم‌ساز */
+const PHONE_FORMAT_CONFIG: Record<'iran_mobile' | 'iran_landline' | 'international', {
+  maxDigits: number;
+  pattern: RegExp;
+  placeholder: string;
+  mask: (digits: string) => string;
+  errorMessage: string;
+}> = {
+  iran_mobile: {
+    maxDigits: 11,
+    pattern: /^09\d{9}$/,
+    placeholder: '0912 345 6789',
+    mask: (d) => [d.slice(0, 4), d.slice(4, 7), d.slice(7, 11)].filter(Boolean).join(' '),
+    errorMessage: 'شمارهٔ موبایل معتبر نیست — باید با ۰۹ شروع شود و ۱۱ رقم باشد.',
+  },
+  iran_landline: {
+    maxDigits: 11,
+    pattern: /^0\d{9,10}$/,
+    placeholder: '021 1234 5678',
+    mask: (d) => {
+      const areaLen = d.length > 10 ? 4 : 3;
+      return [d.slice(0, areaLen), d.slice(areaLen, areaLen + 4), d.slice(areaLen + 4)].filter(Boolean).join(' ');
+    },
+    errorMessage: 'شمارهٔ تلفن ثابت معتبر نیست — باید با پیش‌شمارهٔ شهر (۰) شروع شود.',
+  },
+  international: {
+    maxDigits: 15,
+    pattern: /^\+\d{6,15}$/,
+    placeholder: '+98 912 345 6789',
+    mask: (d) => `+${[d.slice(0, 2), d.slice(2, 5), d.slice(5, 8), d.slice(8, 12)].filter(Boolean).join(' ')}`,
+    errorMessage: 'شمارهٔ بین‌المللی معتبر نیست — باید با + و کد کشور شروع شود.',
+  },
 };
 
 const IRAN_PROVINCES = [
@@ -423,6 +463,19 @@ export default function FormPage({ fontSizeScale, onNavigate, slug }: FormPagePr
     });
   };
 
+  /** مَسک زندهٔ فیلد شماره تلفن — روی هر ضربهٔ کیبورد بر اساس phoneFormat فرمت می‌شود */
+  const handlePhoneChange = (field: FormField, rawInput: string) => {
+    const format = field.validation?.phoneFormat;
+    if (!format || format === 'custom') {
+      setAnswer(field.id, rawInput);
+      return;
+    }
+    const config = PHONE_FORMAT_CONFIG[format];
+    const normalized = toLatinDigits(rawInput);
+    const digits = normalized.replace(/\D/g, '').slice(0, config.maxDigits);
+    setAnswer(field.id, config.mask(digits));
+  };
+
   /** پسوند فایل انتخاب‌شده را در همان لحظهٔ انتخاب (پیش از ارسال فرم) با تنظیمات فیلد می‌سنجد */
   const validateSelectedFile = (field: FormField, file: File): string | null => {
     const allowed = field.validation?.allowedExtensions;
@@ -501,6 +554,13 @@ export default function FormPage({ fontSizeScale, onNavigate, slug }: FormPagePr
         if (field.validation?.minLength && v.length < field.validation.minLength) {
           errors[field.id] = customMsg || `حداقل ${field.validation.minLength} کاراکتر وارد کنید.`;
           continue;
+        }
+        if (field.type === 'phone' && field.validation?.phoneFormat && field.validation.phoneFormat !== 'custom') {
+          const config = PHONE_FORMAT_CONFIG[field.validation.phoneFormat];
+          if (!config.pattern.test(v.replace(/\s/g, ''))) {
+            errors[field.id] = customMsg || config.errorMessage;
+            continue;
+          }
         }
         const charRule = field.charTypeAllowed && field.charTypeAllowed !== 'any' ? CHAR_TYPE_RULES[field.charTypeAllowed] : null;
         if (charRule && !charRule.pattern.test(v)) {
@@ -726,6 +786,22 @@ export default function FormPage({ fontSizeScale, onNavigate, slug }: FormPagePr
             </p>
           )}
         </div>
+      );
+    } else if (field.type === 'phone') {
+      const format = field.validation?.phoneFormat;
+      const config = format && format !== 'custom' ? PHONE_FORMAT_CONFIG[format] : null;
+      control = (
+        <input
+          id={field.id}
+          type="tel"
+          value={value || ''}
+          disabled={field.disabled || field.readOnly}
+          placeholder={field.placeholder || config?.placeholder}
+          onChange={(e) => handlePhoneChange(field, e.target.value)}
+          className={baseInputClass}
+          dir="ltr"
+          style={{ ['--tw-ring-color' as any]: accent }}
+        />
       );
     } else if (field.type === 'select') {
       control = (
