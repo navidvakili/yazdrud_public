@@ -149,6 +149,19 @@ const CHAR_TYPE_RULES: Record<string, { pattern: RegExp; message: string }> = {
   alphanumeric: { pattern: /^[A-Za-z0-9؀-ۿ۰-۹\s]*$/, message: 'کاراکتر خاص مجاز نیست.' },
 };
 
+/** کاراکترهای غیرمجاز را همان لحظهٔ تایپ حذف می‌کند — تا اعتبارسنجی charTypeAllowed فقط موقع ارسال فرم معلوم نشود */
+const CHAR_TYPE_FILTERS: Record<string, RegExp> = {
+  persian_letters: /[^؀-ۿ\s]/g,
+  english_letters: /[^A-Za-z\s]/g,
+  numeric: /[^0-9۰-۹]/g,
+  alphanumeric: /[^A-Za-z0-9؀-ۿ۰-۹\s]/g,
+};
+const filterByCharType = (value: string, charType?: string): string => {
+  if (!charType || charType === 'any') return value;
+  const pattern = CHAR_TYPE_FILTERS[charType];
+  return pattern ? value.replace(pattern, '') : value;
+};
+
 /**
  * ارزیابی امن فرمول محاسبهٔ خودکار — عمداً از eval()/Function() استفاده نمی‌شود
  * (فرمول توسط ادمین در فرم‌ساز تعریف می‌شود، اما اجرای کد دلخواه در مرورگر پاسخ‌دهنده
@@ -753,7 +766,7 @@ export default function FormPage({ fontSizeScale, onNavigate, slug }: FormPagePr
           disabled={field.disabled || field.readOnly}
           placeholder={field.placeholder}
           maxLength={field.validation?.maxLength}
-          onChange={(e) => setAnswer(field.id, e.target.value)}
+          onChange={(e) => setAnswer(field.id, filterByCharType(e.target.value, field.charTypeAllowed))}
           className={baseInputClass}
           style={{ ['--tw-ring-color' as any]: accent }}
         />
@@ -764,20 +777,27 @@ export default function FormPage({ fontSizeScale, onNavigate, slug }: FormPagePr
       const numericValue = typeof value === 'number' ? value : (value === '' || value === null || value === undefined ? null : Number(value));
       control = (
         <div>
-          <input
-            id={field.id}
-            type="number"
-            value={value ?? ''}
-            disabled={field.disabled || field.readOnly || isCalculated}
-            readOnly={isCalculated}
-            min={field.validation?.min}
-            max={field.validation?.max}
-            step={field.decimalPlaces ? 1 / Math.pow(10, field.decimalPlaces) : undefined}
-            placeholder={field.placeholder}
-            onChange={(e) => setAnswer(field.id, e.target.value === '' ? null : Number(e.target.value))}
-            className={`${baseInputClass} ${isCalculated ? 'bg-gray-100 text-gray-500' : ''}`}
-            style={{ ['--tw-ring-color' as any]: accent }}
-          />
+          <div className="relative">
+            <input
+              id={field.id}
+              type="number"
+              value={value ?? ''}
+              disabled={field.disabled || field.readOnly || isCalculated}
+              readOnly={isCalculated}
+              min={field.validation?.min}
+              max={field.validation?.max}
+              step={field.decimalPlaces ? 1 / Math.pow(10, field.decimalPlaces) : undefined}
+              placeholder={field.placeholder}
+              onChange={(e) => setAnswer(field.id, e.target.value === '' ? null : Number(e.target.value))}
+              className={`${baseInputClass} ${isCalculated ? 'bg-gray-100 text-gray-500' : ''}`}
+              style={{ ['--tw-ring-color' as any]: accent, paddingLeft: unitLabel ? '4rem' : undefined }}
+            />
+            {unitLabel && (
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-gray-400 pointer-events-none select-none">
+                {unitLabel}
+              </span>
+            )}
+          </div>
           {numericValue !== null && !isNaN(numericValue) && (
             <p className="text-[11px] text-gray-400 mt-1">
               {isCalculated && 'مقدار محاسبه‌شده: '}
@@ -1090,7 +1110,7 @@ export default function FormPage({ fontSizeScale, onNavigate, slug }: FormPagePr
           disabled={field.disabled || field.readOnly}
           placeholder={field.placeholder}
           maxLength={field.validation?.maxLength}
-          onChange={(e) => setAnswer(field.id, e.target.value)}
+          onChange={(e) => setAnswer(field.id, filterByCharType(e.target.value, field.charTypeAllowed))}
           className={baseInputClass}
           style={{ ['--tw-ring-color' as any]: accent }}
         />
