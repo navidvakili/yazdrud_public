@@ -1,5 +1,7 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { motion } from 'motion/react';
+import type { Map as LeafletMap, Marker as LeafletMarker } from 'leaflet';
+import 'leaflet/dist/leaflet.css';
 import { API } from '../../shared-utils';
 import { API_BASE_URL } from '../../shared-constants';
 import { ActivePage } from '../../types';
@@ -173,6 +175,109 @@ const formatNumberDisplay = (value: number, decimalPlaces = 0, useThousandSepara
   const [intPart, decPart] = fixed.split('.');
   const withSeparators = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
   return decPart ? `${withSeparators}.${decPart}` : withSeparators;
+};
+
+/**
+ * انتخاب مختصات از روی نقشهٔ ماهواره‌ای (Esri World Imagery — رایگان، بدون نیاز به کلید API).
+ * leaflet به‌صورت پویا import می‌شود تا کتابخانهٔ نقشه فقط برای فرم‌هایی بارگذاری شود که
+ * واقعاً از این قابلیت استفاده می‌کنند، نه در بستهٔ اصلی همهٔ صفحات عمومی سایت.
+ */
+const GeoMapPicker: React.FC<{
+  lat?: number;
+  lng?: number;
+  accent: string;
+  onChange: (lat: number, lng: number) => void;
+}> = ({ lat, lng, accent, onChange }) => {
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const mapRef = useRef<LeafletMap | null>(null);
+  const markerRef = useRef<LeafletMarker | null>(null);
+  const onChangeRef = useRef(onChange);
+  onChangeRef.current = onChange;
+
+  useEffect(() => {
+    let cancelled = false;
+
+    import('leaflet').then((L) => {
+      if (cancelled || !containerRef.current || mapRef.current) return;
+
+      const defaultCenter: [number, number] = [32.4279, 53.688]; // مرکز جغرافیایی ایران
+      const startCenter: [number, number] = lat !== undefined && lng !== undefined ? [lat, lng] : defaultCenter;
+
+      const map = L.map(containerRef.current, {
+        center: startCenter,
+        zoom: lat !== undefined ? 15 : 5,
+      });
+      mapRef.current = map;
+
+      L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+        attribution: 'Tiles &copy; Esri',
+        maxZoom: 19,
+      }).addTo(map);
+
+      const pinIcon = L.divIcon({
+        html: `<i class="fa-solid fa-location-dot" style="font-size:28px;color:${accent};filter:drop-shadow(0 1px 2px rgba(0,0,0,.5))"></i>`,
+        className: '',
+        iconSize: [28, 28],
+        iconAnchor: [14, 28],
+      });
+
+      if (lat !== undefined && lng !== undefined) {
+        markerRef.current = L.marker([lat, lng], { icon: pinIcon, draggable: true }).addTo(map);
+        markerRef.current.on('dragend', () => {
+          const pos = markerRef.current!.getLatLng();
+          onChangeRef.current(pos.lat, pos.lng);
+        });
+      }
+
+      map.on('click', (e: any) => {
+        const { lat: clickLat, lng: clickLng } = e.latlng;
+        if (markerRef.current) {
+          markerRef.current.setLatLng([clickLat, clickLng]);
+        } else {
+          markerRef.current = L.marker([clickLat, clickLng], { icon: pinIcon, draggable: true }).addTo(map);
+          markerRef.current.on('dragend', () => {
+            const pos = markerRef.current!.getLatLng();
+            onChangeRef.current(pos.lat, pos.lng);
+          });
+        }
+        onChangeRef.current(clickLat, clickLng);
+      });
+    });
+
+    return () => {
+      cancelled = true;
+      mapRef.current?.remove();
+      mapRef.current = null;
+      markerRef.current = null;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // وقتی مختصات از بیرون (مثلاً دکمهٔ GPS) تغییر کند، نقشه و پین همگام می‌شوند
+  useEffect(() => {
+    if (!mapRef.current || lat === undefined || lng === undefined) return;
+    import('leaflet').then((L) => {
+      if (!mapRef.current) return;
+      mapRef.current.setView([lat, lng], 15);
+      if (markerRef.current) {
+        markerRef.current.setLatLng([lat, lng]);
+      } else {
+        const pinIcon = L.divIcon({
+          html: `<i class="fa-solid fa-location-dot" style="font-size:28px;color:${accent};filter:drop-shadow(0 1px 2px rgba(0,0,0,.5))"></i>`,
+          className: '',
+          iconSize: [28, 28],
+          iconAnchor: [14, 28],
+        });
+        markerRef.current = L.marker([lat, lng], { icon: pinIcon, draggable: true }).addTo(mapRef.current);
+        markerRef.current.on('dragend', () => {
+          const pos = markerRef.current!.getLatLng();
+          onChangeRef.current(pos.lat, pos.lng);
+        });
+      }
+    });
+  }, [lat, lng]);
+
+  return <div ref={containerRef} className="w-full h-56 rounded-xl overflow-hidden border border-gray-200" />;
 };
 
 export default function FormPage({ fontSizeScale, onNavigate, slug }: FormPageProps) {
@@ -787,39 +892,42 @@ export default function FormPage({ fontSizeScale, onNavigate, slug }: FormPagePr
             />
           )}
           {field.includeGeoCoordinates && (
-            <div className="flex items-center gap-2 flex-wrap">
-              <button
-                type="button"
-                onClick={() => {
-                  if (!navigator.geolocation) return;
-                  setGeoLocating((prev) => ({ ...prev, [field.id]: true }));
-                  navigator.geolocation.getCurrentPosition(
-                    (pos) => {
-                      setAnswer(field.id, { ...addr, lat: pos.coords.latitude, lng: pos.coords.longitude });
-                      setGeoLocating((prev) => ({ ...prev, [field.id]: false }));
-                    },
-                    () => setGeoLocating((prev) => ({ ...prev, [field.id]: false })),
-                    { enableHighAccuracy: true, timeout: 10000 }
-                  );
-                }}
-                disabled={isLocating}
-                className="px-3 py-2 rounded-lg text-xs font-bold text-white flex items-center gap-1.5 disabled:opacity-60"
-                style={{ backgroundColor: accent }}
-              >
-                <i className={`fa-solid ${isLocating ? 'fa-circle-notch fa-spin' : 'fa-location-crosshairs'}`}></i>
-                {isLocating ? 'در حال دریافت موقعیت...' : 'دریافت موقعیت فعلی از نقشه'}
-              </button>
-              {addr.lat && addr.lng && (
-                <a
-                  href={`https://www.google.com/maps?q=${addr.lat},${addr.lng}`}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="text-[11px] font-bold underline"
-                  style={{ color: accent }}
+            <div className="space-y-2">
+              <GeoMapPicker
+                lat={addr.lat}
+                lng={addr.lng}
+                accent={accent}
+                onChange={(newLat, newLng) => setAnswer(field.id, { ...addr, lat: newLat, lng: newLng })}
+              />
+              <div className="flex items-center gap-2 flex-wrap">
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (!navigator.geolocation) return;
+                    setGeoLocating((prev) => ({ ...prev, [field.id]: true }));
+                    navigator.geolocation.getCurrentPosition(
+                      (pos) => {
+                        setAnswer(field.id, { ...addr, lat: pos.coords.latitude, lng: pos.coords.longitude });
+                        setGeoLocating((prev) => ({ ...prev, [field.id]: false }));
+                      },
+                      () => setGeoLocating((prev) => ({ ...prev, [field.id]: false })),
+                      { enableHighAccuracy: true, timeout: 10000 }
+                    );
+                  }}
+                  disabled={isLocating}
+                  className="px-3 py-1.5 rounded-lg text-[11px] font-bold text-white flex items-center gap-1.5 disabled:opacity-60"
+                  style={{ backgroundColor: accent }}
                 >
-                  مشاهده روی نقشه ({addr.lat.toFixed(5)}, {addr.lng.toFixed(5)})
-                </a>
-              )}
+                  <i className={`fa-solid ${isLocating ? 'fa-circle-notch fa-spin' : 'fa-location-crosshairs'}`}></i>
+                  {isLocating ? 'در حال دریافت موقعیت...' : 'استفاده از موقعیت فعلی من'}
+                </button>
+                <span className="text-[10px] text-gray-400">یا روی نقشه کلیک کنید / پین را جابه‌جا کنید</span>
+                {addr.lat && addr.lng && (
+                  <span className="text-[11px] font-mono text-gray-500" dir="ltr">
+                    {addr.lat.toFixed(5)}, {addr.lng.toFixed(5)}
+                  </span>
+                )}
+              </div>
             </div>
           )}
         </div>
