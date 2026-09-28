@@ -84,6 +84,7 @@ export default function FormPage({ fontSizeScale, onNavigate, slug }: FormPagePr
   // فایل‌های انتخاب‌شده فقط لحظهٔ ارسال نهایی فرم آپلود می‌شوند، نه بلافاصله هنگام انتخاب —
   // اگر کاربر فرم را رها کند، هیچ فایلی روی سرور باقی نمی‌ماند.
   const [pendingFiles, setPendingFiles] = useState<Record<string, File>>({});
+  const [dragOverFieldId, setDragOverFieldId] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
@@ -358,7 +359,10 @@ export default function FormPage({ fontSizeScale, onNavigate, slug }: FormPagePr
       const tok = securityTokens[field.id];
       return (
         <div key={field.id} className="space-y-2">
-          <label className="block text-xs font-bold text-[#1F3A5F]">{field.label}</label>
+          <label className="block text-xs font-bold text-[#1F3A5F]">
+            {field.label}
+            {field.validation?.required && <span className="text-red-500 mr-1">*</span>}
+          </label>
           <div className="flex items-center gap-3 flex-wrap">
             {tok ? (
               <img src={tok.image} alt="کد امنیتی" className="h-14 rounded-lg border border-gray-200" />
@@ -491,6 +495,7 @@ export default function FormPage({ fontSizeScale, onNavigate, slug }: FormPagePr
             onChange={(e) => setAnswer(field.id, e.target.checked)}
             style={{ accentColor: accent }}
           />
+          {field.validation?.required && <span className="text-red-500">*</span>}
           {field.placeholder || 'تأیید می‌کنم'}
         </label>
       );
@@ -535,16 +540,46 @@ export default function FormPage({ fontSizeScale, onNavigate, slug }: FormPagePr
         allowedExt && allowedExt.length > 0 ? `فرمت‌های مجاز: ${allowedExt.join('، ')}` : null,
         field.validation?.maxFileSizeMb ? `حداکثر حجم: ${field.validation.maxFileSizeMb} مگابایت` : null,
       ].filter(Boolean).join(' — ');
+      const isDropDisabled = uploading[field.id] || submitting;
+      const isDragOver = dragOverFieldId === field.id;
       control = (
         <div>
-          <input
-            type="file"
-            accept={acceptAttr}
-            disabled={uploading[field.id] || submitting}
-            onChange={(e) => handleFileSelect(field, e.target.files?.[0] || null)}
-            className="block w-full text-xs text-[#1F3A5F] file:ml-3 file:px-3 file:py-2 file:rounded-lg file:border-0 file:bg-[var(--file-bg)] file:text-white file:text-xs file:font-bold file:cursor-pointer cursor-pointer"
-            style={{ ['--file-bg' as any]: accent }}
-          />
+          <label
+            htmlFor={`file-input-${field.id}`}
+            onDragOver={(e) => {
+              e.preventDefault();
+              if (!isDropDisabled) setDragOverFieldId(field.id);
+            }}
+            onDragLeave={() => setDragOverFieldId((id) => (id === field.id ? null : id))}
+            onDrop={(e) => {
+              e.preventDefault();
+              setDragOverFieldId((id) => (id === field.id ? null : id));
+              if (!isDropDisabled) handleFileSelect(field, e.dataTransfer.files?.[0] || null);
+            }}
+            className={`flex flex-col items-center justify-center gap-1.5 p-5 border-2 border-dashed text-center transition-colors ${radiusClass} ${
+              isDropDisabled ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'
+            }`}
+            style={{
+              borderColor: isDragOver ? accent : '#D1D5DB',
+              backgroundColor: isDragOver ? `${accent}14` : '#FAFAFA',
+            }}
+          >
+            <i className="fa-solid fa-cloud-arrow-up text-xl" style={{ color: accent }}></i>
+            <span className="text-xs font-bold text-[#1F3A5F]">
+              برای انتخاب فایل کلیک کنید یا آن را اینجا رها کنید
+            </span>
+            <input
+              id={`file-input-${field.id}`}
+              type="file"
+              accept={acceptAttr}
+              disabled={isDropDisabled}
+              onChange={(e) => {
+                handleFileSelect(field, e.target.files?.[0] || null);
+                e.target.value = '';
+              }}
+              className="hidden"
+            />
+          </label>
           {hint && !error && <p className="text-[10px] text-gray-400 mt-1">{hint}</p>}
           {uploading[field.id] && <p className="text-[11px] text-gray-400 mt-1">در حال آپلود...</p>}
           {pendingFiles[field.id] && !uploading[field.id] && (
