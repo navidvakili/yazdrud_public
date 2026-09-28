@@ -1371,12 +1371,17 @@ export default function FormPage({ fontSizeScale, onNavigate, slug }: FormPagePr
           <input
             id={field.id}
             type="range"
+            dir="ltr"
             min={field.validation?.min ?? 0}
             max={field.validation?.max ?? 100}
             value={value ?? field.validation?.min ?? 0}
             onChange={(e) => setAnswer(field.id, Number(e.target.value))}
+            disabled={field.disabled || field.readOnly}
             className="flex-1"
-            style={{ accentColor: accent }}
+            // مرورگرهای مبتنی بر Chromium جهت داخلی رنجر (نگاشت محل کلیک به مقدار) را مطابق
+            // dir="rtl" صفحه اصلاح نمی‌کنند و همین باعث پرش دکمه هنگام کلیک می‌شود؛ با اجبار
+            // به ltr + آینه‌کردن با scaleX(-1) هم نمایش و هم محاسبهٔ کلیک با هم هماهنگ می‌مانند
+            style={{ accentColor: accent, transform: 'scaleX(-1)' }}
           />
           <span className="text-xs font-mono font-bold text-[#1F3A5F] w-10 text-center">{value ?? field.validation?.min ?? 0}</span>
         </div>
