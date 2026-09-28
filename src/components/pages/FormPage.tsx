@@ -43,6 +43,8 @@ interface FormField {
     regexPattern?: string;
     customErrorMessage?: string;
     phoneFormat?: 'iran_mobile' | 'iran_landline' | 'international' | 'custom';
+    allowedDomains?: string[];
+    blockFreeEmailProviders?: boolean;
   };
   // Text & textarea
   charTypeAllowed?: 'any' | 'persian_letters' | 'english_letters' | 'numeric' | 'alphanumeric';
@@ -104,6 +106,8 @@ const toLatinDigits = (str: string): string =>
     .replace(/[٠-٩]/g, (d) => String(d.charCodeAt(0) - '٠'.charCodeAt(0)));
 
 /** پیکربندی مَسک و اعتبارسنجی برای هر «قالب و فرمت شماره» تعریف‌شده روی فیلد phone در فرم‌ساز */
+const FREE_EMAIL_PROVIDERS = ['gmail.com', 'yahoo.com', 'outlook.com', 'hotmail.com', 'live.com', 'icloud.com', 'aol.com', 'mail.com', 'protonmail.com', 'yandex.com'];
+
 const PHONE_FORMAT_CONFIG: Record<'iran_mobile' | 'iran_landline' | 'international', {
   maxDigits: number;
   pattern: RegExp;
@@ -725,6 +729,20 @@ export default function FormPage({ fontSizeScale, onNavigate, slug }: FormPagePr
           if (!config.pattern.test(v.replace(/\s/g, ''))) {
             errors[field.id] = customMsg || config.errorMessage;
             continue;
+          }
+        }
+        if (field.type === 'email') {
+          const domain = v.split('@')[1]?.toLowerCase().trim();
+          if (domain) {
+            const allowed = field.validation?.allowedDomains;
+            if (allowed && allowed.length > 0 && !allowed.some((d) => domain === d.toLowerCase().trim())) {
+              errors[field.id] = customMsg || `ایمیل باید از یکی از این دامنه‌ها باشد: ${allowed.join('، ')}`;
+              continue;
+            }
+            if (field.validation?.blockFreeEmailProviders && FREE_EMAIL_PROVIDERS.includes(domain)) {
+              errors[field.id] = customMsg || 'استفاده از ایمیل‌های عمومی رایگان (Gmail، Yahoo و...) مجاز نیست.';
+              continue;
+            }
           }
         }
         const charRule = field.charTypeAllowed && field.charTypeAllowed !== 'any' ? CHAR_TYPE_RULES[field.charTypeAllowed] : null;
