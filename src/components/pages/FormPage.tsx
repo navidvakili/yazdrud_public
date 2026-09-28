@@ -2,7 +2,12 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { motion } from 'motion/react';
 import type { Map as LeafletMap, Marker as LeafletMarker } from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { API } from '../../shared-utils';
+import DatePicker, { DateObject } from 'react-multi-date-picker';
+import persianCalendar from 'react-date-object/calendars/persian';
+import persianLocaleFa from 'react-date-object/locales/persian_fa';
+import gregorianCalendar from 'react-date-object/calendars/gregorian';
+import 'react-multi-date-picker/styles/colors/teal.css';
+import { API, toPersianDigits, toEnglishDigits } from '../../shared-utils';
 import { API_BASE_URL } from '../../shared-constants';
 import { ActivePage } from '../../types';
 import Breadcrumb from '../Breadcrumb';
@@ -45,6 +50,8 @@ interface FormField {
     phoneFormat?: 'iran_mobile' | 'iran_landline' | 'international' | 'custom';
     allowedDomains?: string[];
     blockFreeEmailProviders?: boolean;
+    disallowPastDates?: boolean;
+    disallowFutureDates?: boolean;
   };
   // Text & textarea
   charTypeAllowed?: 'any' | 'persian_letters' | 'english_letters' | 'numeric' | 'alphanumeric';
@@ -71,6 +78,10 @@ interface FormField {
   // Yes/No (two-state) field
   yesLabel?: string;
   noLabel?: string;
+  // Date / time
+  calendarType?: 'jalali' | 'gregorian';
+  defaultDateOption?: 'none' | 'today' | 'custom';
+  iconColor?: string;
 }
 
 interface FormTheme {
@@ -98,9 +109,7 @@ const INPUT_TYPE_MAP: Record<string, string> = {
   email: 'email',
   password: 'password',
   url: 'url',
-  date: 'date',
   time: 'time',
-  datetime: 'datetime-local',
   color: 'color',
 };
 
@@ -532,6 +541,67 @@ const SelectField: React.FC<{
   );
 };
 
+/** «امروز» به تقویم شمسی، به‌صورت رشتهٔ YYYY/MM/DD با رقم فارسی */
+const todayJalaliString = (): string => toPersianDigits(new DateObject({ calendar: persianCalendar }).format('YYYY/MM/DD'));
+
+/** «امروز» به فرمت ISO میلادی (YYYY-MM-DD) — برای ورودی‌های native تقویم میلادی */
+const todayIsoString = (): string => new Date().toISOString().slice(0, 10);
+
+/** تبدیل تاریخ ثابت میلادی (ISO، از ورودی native تاریخ در فرم‌ساز) به رشتهٔ شمسی YYYY/MM/DD */
+const gregorianIsoToJalaliString = (iso: string): string => {
+  try {
+    const g = new DateObject({ date: iso, format: 'YYYY-MM-DD', calendar: gregorianCalendar });
+    return toPersianDigits(g.convert(persianCalendar).format('YYYY/MM/DD'));
+  } catch {
+    return '';
+  }
+};
+
+/** انتخاب‌گر تاریخ شمسی (Jalali) — برای فیلدهای date/datetime وقتی calendarType روی jalali تنظیم شده */
+const JalaliDateField: React.FC<{
+  value: string;
+  onChange: (v: string) => void;
+  accent: string;
+  iconColor?: string;
+  minDate?: string;
+  maxDate?: string;
+  disabled?: boolean;
+}> = ({ value, onChange, accent, iconColor, minDate, maxDate, disabled }) => {
+  const toDateObject = (v?: string): DateObject | undefined => {
+    if (!v) return undefined;
+    const eng = toEnglishDigits(v);
+    return new DateObject({ calendar: persianCalendar, date: eng, format: 'YYYY/MM/DD' });
+  };
+
+  return (
+    <DatePicker
+      calendar={persianCalendar}
+      locale={persianLocaleFa}
+      value={toDateObject(value)}
+      onChange={(d: DateObject | null) => onChange(d ? toPersianDigits(d.format('YYYY/MM/DD')) : '')}
+      minDate={toDateObject(minDate)}
+      maxDate={toDateObject(maxDate)}
+      disabled={disabled}
+      format="YYYY/MM/DD"
+      inputClass="w-full px-4 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 bg-white cursor-pointer"
+      containerClassName="w-full"
+      calendarPosition="bottom-right"
+      render={<JalaliDateInputButton iconColor={iconColor} accent={accent} />}
+    />
+  );
+};
+
+const JalaliDateInputButton: React.FC<any> = ({ openCalendar, value, iconColor, accent }) => (
+  <div
+    onClick={openCalendar}
+    className="w-full px-4 py-2.5 text-sm border border-gray-200 rounded-xl bg-white cursor-pointer flex items-center gap-2"
+    style={{ ['--tw-ring-color' as any]: accent }}
+  >
+    <i className="fa-solid fa-calendar-days" style={{ color: iconColor || '#94a3b8' }}></i>
+    <span className={value ? '' : 'text-gray-400'}>{value ? toPersianDigits(value) : 'انتخاب تاریخ'}</span>
+  </div>
+);
+
 export default function FormPage({ fontSizeScale, onNavigate, slug }: FormPageProps) {
   const [form, setForm] = useState<FormDto | null>(null);
   const [loading, setLoading] = useState(true);
@@ -578,6 +648,18 @@ export default function FormPage({ fontSizeScale, onNavigate, slug }: FormPagePr
           if (f.prefillSource === 'query_param' && f.prefillQueryParam) {
             const fromQuery = queryParams.get(f.prefillQueryParam);
             if (fromQuery) defaults[f.id] = fromQuery;
+          }
+          // مقدار پیش‌فرض تاریخ/ساعت — «امروز/اکنون» همیشه محاسبه می‌شود، «سفارشی» هم اگر تقویم
+          // شمسی باشد باید از میلادیِ ذخیره‌شده در defaultValue به شمسی تبدیل شود
+          if ((f.type === 'date' || f.type === 'datetime') && f.defaultDateOption && f.defaultDateOption !== 'none') {
+            const isJalali = (f.calendarType || 'jalali') === 'jalali';
+            if (f.defaultDateOption === 'today') {
+              defaults[f.id] = isJalali ? todayJalaliString() : todayIsoString();
+            } else if (f.defaultDateOption === 'custom' && f.defaultValue) {
+              defaults[f.id] = isJalali ? gregorianIsoToJalaliString(f.defaultValue) : f.defaultValue;
+            }
+          } else if (f.type === 'time' && f.defaultDateOption === 'today') {
+            defaults[f.id] = new Date().toTimeString().slice(0, 5);
           }
         });
         setAnswers(defaults);
@@ -784,6 +866,31 @@ export default function FormPage({ fontSizeScale, onNavigate, slug }: FormPagePr
             }
             if (field.validation?.blockFreeEmailProviders && FREE_EMAIL_PROVIDERS.includes(domain)) {
               errors[field.id] = customMsg || 'استفاده از ایمیل‌های عمومی رایگان (Gmail، Yahoo و...) مجاز نیست.';
+              continue;
+            }
+          }
+        }
+        if ((field.type === 'date' || field.type === 'datetime') && (field.validation?.disallowPastDates || field.validation?.disallowFutureDates)) {
+          const isJalali = (field.calendarType || 'jalali') === 'jalali';
+          let isoDate: string | null = null;
+          if (isJalali) {
+            try {
+              const d = new DateObject({ calendar: persianCalendar, date: toEnglishDigits(v), format: 'YYYY/MM/DD' });
+              isoDate = d.convert(gregorianCalendar).format('YYYY-MM-DD');
+            } catch {
+              isoDate = null;
+            }
+          } else {
+            isoDate = v.slice(0, 10);
+          }
+          if (isoDate) {
+            const today = todayIsoString();
+            if (field.validation?.disallowPastDates && isoDate < today) {
+              errors[field.id] = customMsg || 'امکان انتخاب تاریخ‌های گذشته وجود ندارد.';
+              continue;
+            }
+            if (field.validation?.disallowFutureDates && isoDate > today) {
+              errors[field.id] = customMsg || 'امکان انتخاب تاریخ‌های آینده وجود ندارد.';
               continue;
             }
           }
@@ -1036,6 +1143,36 @@ export default function FormPage({ fontSizeScale, onNavigate, slug }: FormPagePr
           style={{ ['--tw-ring-color' as any]: accent }}
         />
       );
+    } else if (field.type === 'date' || field.type === 'datetime') {
+      const isDisabled = field.disabled || field.readOnly;
+      const isJalali = (field.calendarType || 'jalali') === 'jalali';
+      if (isJalali) {
+        control = (
+          <JalaliDateField
+            value={value || ''}
+            onChange={(v) => setAnswer(field.id, v)}
+            accent={accent}
+            iconColor={field.iconColor}
+            minDate={field.validation?.disallowPastDates ? todayJalaliString() : undefined}
+            maxDate={field.validation?.disallowFutureDates ? todayJalaliString() : undefined}
+            disabled={isDisabled}
+          />
+        );
+      } else {
+        control = (
+          <input
+            id={field.id}
+            type={field.type === 'datetime' ? 'datetime-local' : 'date'}
+            value={value || ''}
+            disabled={isDisabled}
+            min={field.validation?.disallowPastDates ? todayIsoString() : undefined}
+            max={field.validation?.disallowFutureDates ? todayIsoString() : undefined}
+            onChange={(e) => setAnswer(field.id, e.target.value)}
+            className={baseInputClass}
+            style={{ ['--tw-ring-color' as any]: accent }}
+          />
+        );
+      }
     } else if (field.type === 'select') {
       control = (
         <SelectField
