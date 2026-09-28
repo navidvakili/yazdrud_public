@@ -466,7 +466,7 @@ export default function FormPage({ fontSizeScale, onNavigate, slug }: FormPagePr
             accept={field.type === 'image' ? 'image/*' : undefined}
             disabled={uploading[field.id]}
             onChange={(e) => handleFileSelect(field, e.target.files?.[0] || null)}
-            className="block w-full text-xs text-[#1F3A5F] file:ml-3 file:px-3 file:py-2 file:rounded-lg file:border-0 file:text-white file:text-xs file:font-bold file:cursor-pointer"
+            className="block w-full text-xs text-[#1F3A5F] file:ml-3 file:px-3 file:py-2 file:rounded-lg file:border-0 file:bg-[var(--file-bg)] file:text-white file:text-xs file:font-bold file:cursor-pointer cursor-pointer"
             style={{ ['--file-bg' as any]: accent }}
           />
           {uploading[field.id] && <p className="text-[11px] text-gray-400 mt-1">در حال آپلود...</p>}
