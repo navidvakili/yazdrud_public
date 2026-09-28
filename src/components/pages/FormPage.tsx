@@ -38,7 +38,26 @@ interface FormField {
     max?: number;
     allowedExtensions?: string[];
     maxFileSizeMb?: number;
+    regexPattern?: string;
+    customErrorMessage?: string;
   };
+  // Text & textarea
+  charTypeAllowed?: 'any' | 'persian_letters' | 'english_letters' | 'numeric' | 'alphanumeric';
+  // Number / currency / percentage / slider
+  decimalPlaces?: number;
+  numberUnit?: string;
+  currencyUnit?: string;
+  useThousandSeparator?: boolean;
+  // Auto-calculation
+  autoCalculationEnabled?: boolean;
+  formula?: string;
+  // Auto-fill / prefill
+  prefillSource?: 'none' | 'user_fullname' | 'user_email' | 'user_phone' | 'user_national_id' | 'user_role' | 'query_param';
+  prefillQueryParam?: string;
+  // Address / location components
+  includeProvince?: boolean;
+  includePostalCode?: boolean;
+  includeGeoCoordinates?: boolean;
 }
 
 interface FormTheme {
@@ -61,7 +80,7 @@ interface FormDto {
   settings: FormSettings | null;
 }
 
-const TEXT_LIKE_TYPES = new Set(['text', 'email', 'phone', 'password', 'url', 'richtext', 'matrix', 'likert', 'ranking', 'cascading', 'location', 'address', 'qrcode', 'signature']);
+const TEXT_LIKE_TYPES = new Set(['text', 'email', 'phone', 'password', 'url', 'richtext', 'matrix', 'likert', 'ranking', 'cascading', 'qrcode', 'signature']);
 const INPUT_TYPE_MAP: Record<string, string> = {
   email: 'email',
   phone: 'tel',
@@ -71,6 +90,89 @@ const INPUT_TYPE_MAP: Record<string, string> = {
   time: 'time',
   datetime: 'datetime-local',
   color: 'color',
+};
+
+const IRAN_PROVINCES = [
+  'آذربایجان شرقی', 'آذربایجان غربی', 'اردبیل', 'اصفهان', 'البرز', 'ایلام', 'بوشهر',
+  'تهران', 'چهارمحال و بختیاری', 'خراسان جنوبی', 'خراسان رضوی', 'خراسان شمالی',
+  'خوزستان', 'زنجان', 'سمنان', 'سیستان و بلوچستان', 'فارس', 'قزوین', 'قم', 'کردستان',
+  'کرمان', 'کرمانشاه', 'کهگیلویه و بویراحمد', 'گلستان', 'گیلان', 'لرستان', 'مازندران',
+  'مرکزی', 'هرمزگان', 'همدان', 'یزد',
+];
+
+const CHAR_TYPE_RULES: Record<string, { pattern: RegExp; message: string }> = {
+  persian_letters: { pattern: /^[؀-ۿ\s]*$/, message: 'فقط حروف فارسی مجاز است.' },
+  english_letters: { pattern: /^[A-Za-z\s]*$/, message: 'فقط حروف انگلیسی مجاز است.' },
+  numeric: { pattern: /^[0-9۰-۹]*$/, message: 'فقط عدد مجاز است.' },
+  alphanumeric: { pattern: /^[A-Za-z0-9؀-ۿ۰-۹\s]*$/, message: 'کاراکتر خاص مجاز نیست.' },
+};
+
+/**
+ * ارزیابی امن فرمول محاسبهٔ خودکار — عمداً از eval()/Function() استفاده نمی‌شود
+ * (فرمول توسط ادمین در فرم‌ساز تعریف می‌شود، اما اجرای کد دلخواه در مرورگر پاسخ‌دهنده
+ * همیشه باید پرهیز شود). فقط چهار عمل اصلی، پرانتز و شناسهٔ فیلدها را پشتیبانی می‌کند.
+ */
+const evaluateFormula = (formula: string, values: Record<string, number>): number | null => {
+  const tokens = formula.match(/[A-Za-z_][A-Za-z0-9_]*|\d+(?:\.\d+)?|[()+\-*/]/g);
+  if (!tokens) return null;
+  let pos = 0;
+  const peek = () => tokens[pos];
+  const next = () => tokens[pos++];
+
+  const parseFactor = (): number | null => {
+    const t = peek();
+    if (t === undefined) return null;
+    if (t === '(') {
+      next();
+      const v = parseExpr();
+      if (peek() === ')') next();
+      return v;
+    }
+    if (t === '-') {
+      next();
+      const v = parseFactor();
+      return v === null ? null : -v;
+    }
+    next();
+    if (/^\d/.test(t)) return parseFloat(t);
+    const fieldVal = values[t];
+    return typeof fieldVal === 'number' && !isNaN(fieldVal) ? fieldVal : 0;
+  };
+
+  const parseTerm = (): number | null => {
+    let v = parseFactor();
+    if (v === null) return null;
+    while (peek() === '*' || peek() === '/') {
+      const op = next();
+      const rhs = parseFactor();
+      if (rhs === null) return null;
+      v = op === '*' ? v * rhs : v / rhs;
+    }
+    return v;
+  };
+
+  const parseExpr = (): number | null => {
+    let v = parseTerm();
+    if (v === null) return null;
+    while (peek() === '+' || peek() === '-') {
+      const op = next();
+      const rhs = parseTerm();
+      if (rhs === null) return null;
+      v = op === '+' ? v + rhs : v - rhs;
+    }
+    return v;
+  };
+
+  const result = parseExpr();
+  return result === null || isNaN(result) ? null : result;
+};
+
+const formatNumberDisplay = (value: number, decimalPlaces = 0, useThousandSeparator = true): string => {
+  const fixed = value.toFixed(decimalPlaces);
+  if (!useThousandSeparator) return fixed;
+  const [intPart, decPart] = fixed.split('.');
+  const withSeparators = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  return decPart ? `${withSeparators}.${decPart}` : withSeparators;
 };
 
 export default function FormPage({ fontSizeScale, onNavigate, slug }: FormPageProps) {
@@ -85,6 +187,7 @@ export default function FormPage({ fontSizeScale, onNavigate, slug }: FormPagePr
   // اگر کاربر فرم را رها کند، هیچ فایلی روی سرور باقی نمی‌ماند.
   const [pendingFiles, setPendingFiles] = useState<Record<string, File>>({});
   const [dragOverFieldId, setDragOverFieldId] = useState<string | null>(null);
+  const [geoLocating, setGeoLocating] = useState<Record<string, boolean>>({});
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
@@ -110,8 +213,15 @@ export default function FormPage({ fontSizeScale, onNavigate, slug }: FormPagePr
         if (cancelled) return;
         setForm(res.data);
         const defaults: Record<string, any> = {};
+        const queryParams = new URLSearchParams(window.location.search);
         (res.data.fields || []).forEach((f) => {
           if (f.defaultValue !== undefined && f.defaultValue !== null) defaults[f.id] = f.defaultValue;
+          // پرشدن خودکار از پارامتر URL — سایر مقادیر prefillSource (نام/ایمیل/... کاربر)
+          // نیاز به کاربر واردشده (لاگین) دارند که فرم عمومی فاقد آن است
+          if (f.prefillSource === 'query_param' && f.prefillQueryParam) {
+            const fromQuery = queryParams.get(f.prefillQueryParam);
+            if (fromQuery) defaults[f.id] = fromQuery;
+          }
         });
         setAnswers(defaults);
       })
@@ -141,6 +251,34 @@ export default function FormPage({ fontSizeScale, onNavigate, slug }: FormPagePr
     () => visibleFields.filter((f) => f.type === 'security' && f.securityType === 'honeypot'),
     [visibleFields]
   );
+  const calculatedFields = useMemo(
+    () => visibleFields.filter((f) => f.autoCalculationEnabled && f.formula),
+    [visibleFields]
+  );
+
+  // محاسبهٔ خودکار — هر بار مقدار یکی از فیلدها تغییر می‌کند، فیلدهای دارای فرمول
+  // دوباره از روی فرمول‌شان محاسبه می‌شوند (خودشان توسط کاربر قابل ویرایش نیستند)
+  useEffect(() => {
+    if (calculatedFields.length === 0) return;
+    const numericValues: Record<string, number> = {};
+    Object.entries(answers).forEach(([key, v]) => {
+      const n = typeof v === 'number' ? v : parseFloat(v);
+      if (!isNaN(n)) numericValues[key] = n;
+    });
+    setAnswers((prev) => {
+      let changed = false;
+      const next = { ...prev };
+      calculatedFields.forEach((f) => {
+        const computed = evaluateFormula(f.formula!, numericValues);
+        if (computed !== null && next[f.id] !== computed) {
+          next[f.id] = computed;
+          changed = true;
+        }
+      });
+      return changed ? next : prev;
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [answers, calculatedFields]);
 
   // Generate a CAPTCHA-family challenge for each security field once the form loads
   useEffect(() => {
@@ -240,10 +378,46 @@ export default function FormPage({ fontSizeScale, onNavigate, slug }: FormPagePr
   const validate = (): boolean => {
     const errors: Record<string, string> = {};
     for (const field of visibleFields) {
-      if (field.type === 'security') continue;
+      if (field.type === 'security' || field.autoCalculationEnabled) continue;
       const v = answers[field.id];
-      if (field.validation?.required && (v === undefined || v === null || v === '' || (Array.isArray(v) && v.length === 0))) {
-        errors[field.id] = 'تکمیل این فیلد الزامی است.';
+      const isAddressType = field.type === 'address' || field.type === 'location';
+      const isEmpty = isAddressType
+        ? !v || typeof v !== 'object' || !String(v.full || '').trim()
+        : v === undefined || v === null || v === '' || (Array.isArray(v) && v.length === 0);
+      const customMsg = field.validation?.customErrorMessage;
+
+      if (field.validation?.required && isEmpty) {
+        errors[field.id] = customMsg || 'تکمیل این فیلد الزامی است.';
+        continue;
+      }
+      if (isEmpty) continue;
+
+      if (typeof v === 'string') {
+        if (field.validation?.minLength && v.length < field.validation.minLength) {
+          errors[field.id] = customMsg || `حداقل ${field.validation.minLength} کاراکتر وارد کنید.`;
+          continue;
+        }
+        const charRule = field.charTypeAllowed && field.charTypeAllowed !== 'any' ? CHAR_TYPE_RULES[field.charTypeAllowed] : null;
+        if (charRule && !charRule.pattern.test(v)) {
+          errors[field.id] = customMsg || charRule.message;
+          continue;
+        }
+        if (field.validation?.regexPattern) {
+          try {
+            if (!new RegExp(field.validation.regexPattern).test(v)) {
+              errors[field.id] = customMsg || 'فرمت واردشده معتبر نیست.';
+              continue;
+            }
+          } catch {
+            // الگوی نامعتبر در تنظیمات فیلد — نادیده گرفته می‌شود تا فرم غیرقابل‌ارسال نشود
+          }
+        }
+      }
+
+      if (field.includePostalCode && v && typeof v === 'object' && v.postalCode) {
+        if (!/^\d{10}$/.test(v.postalCode)) {
+          errors[field.id] = 'کد پستی باید دقیقاً ۱۰ رقم باشد.';
+        }
       }
     }
     setFieldErrors(errors);
@@ -413,25 +587,40 @@ export default function FormPage({ fontSizeScale, onNavigate, slug }: FormPagePr
           value={value || ''}
           disabled={field.disabled || field.readOnly}
           placeholder={field.placeholder}
+          maxLength={field.validation?.maxLength}
           onChange={(e) => setAnswer(field.id, e.target.value)}
           className={baseInputClass}
           style={{ ['--tw-ring-color' as any]: accent }}
         />
       );
     } else if (field.type === 'number' || field.type === 'currency' || field.type === 'percentage') {
+      const unitLabel = field.type === 'currency' ? (field.currencyUnit || 'تومان') : field.type === 'percentage' ? '٪' : field.numberUnit;
+      const isCalculated = !!field.autoCalculationEnabled;
+      const numericValue = typeof value === 'number' ? value : (value === '' || value === null || value === undefined ? null : Number(value));
       control = (
-        <input
-          id={field.id}
-          type="number"
-          value={value ?? ''}
-          disabled={field.disabled || field.readOnly}
-          min={field.validation?.min}
-          max={field.validation?.max}
-          placeholder={field.placeholder}
-          onChange={(e) => setAnswer(field.id, e.target.value === '' ? null : Number(e.target.value))}
-          className={baseInputClass}
-          style={{ ['--tw-ring-color' as any]: accent }}
-        />
+        <div>
+          <input
+            id={field.id}
+            type="number"
+            value={value ?? ''}
+            disabled={field.disabled || field.readOnly || isCalculated}
+            readOnly={isCalculated}
+            min={field.validation?.min}
+            max={field.validation?.max}
+            step={field.decimalPlaces ? 1 / Math.pow(10, field.decimalPlaces) : undefined}
+            placeholder={field.placeholder}
+            onChange={(e) => setAnswer(field.id, e.target.value === '' ? null : Number(e.target.value))}
+            className={`${baseInputClass} ${isCalculated ? 'bg-gray-100 text-gray-500' : ''}`}
+            style={{ ['--tw-ring-color' as any]: accent }}
+          />
+          {numericValue !== null && !isNaN(numericValue) && (
+            <p className="text-[11px] text-gray-400 mt-1">
+              {isCalculated && 'مقدار محاسبه‌شده: '}
+              {formatNumberDisplay(numericValue, field.decimalPlaces || 0, field.useThousandSeparator !== false)}
+              {unitLabel ? ` ${unitLabel}` : ''}
+            </p>
+          )}
+        </div>
       );
     } else if (field.type === 'select') {
       control = (
@@ -451,6 +640,7 @@ export default function FormPage({ fontSizeScale, onNavigate, slug }: FormPagePr
       );
     } else if (field.type === 'multiselect') {
       const selected: string[] = Array.isArray(value) ? value : [];
+      const isFieldDisabled = field.disabled || field.readOnly;
       control = (
         <div className="flex flex-wrap gap-2">
           {(field.options || []).map((opt) => {
@@ -459,10 +649,11 @@ export default function FormPage({ fontSizeScale, onNavigate, slug }: FormPagePr
               <button
                 type="button"
                 key={opt.id}
+                disabled={isFieldDisabled}
                 onClick={() =>
                   setAnswer(field.id, isChecked ? selected.filter((v) => v !== opt.value) : [...selected, opt.value])
                 }
-                className={`px-3 py-1.5 text-xs font-bold rounded-full border transition-colors ${
+                className={`px-3 py-1.5 text-xs font-bold rounded-full border transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
                   isChecked ? 'text-white border-transparent' : 'bg-white text-[#1F3A5F] border-gray-200'
                 }`}
                 style={isChecked ? { backgroundColor: accent } : undefined}
@@ -485,6 +676,7 @@ export default function FormPage({ fontSizeScale, onNavigate, slug }: FormPagePr
                 type="radio"
                 name={field.id}
                 checked={value === opt.value}
+                disabled={field.disabled || field.readOnly}
                 onChange={() => setAnswer(field.id, opt.value)}
                 style={{ accentColor: accent }}
               />
@@ -499,6 +691,7 @@ export default function FormPage({ fontSizeScale, onNavigate, slug }: FormPagePr
           <input
             type="checkbox"
             checked={!!value}
+            disabled={field.disabled || field.readOnly}
             onChange={(e) => setAnswer(field.id, e.target.checked)}
             style={{ accentColor: accent }}
           />
@@ -508,14 +701,16 @@ export default function FormPage({ fontSizeScale, onNavigate, slug }: FormPagePr
       );
     } else if (field.type === 'rating') {
       const rating = Number(value) || 0;
+      const isFieldDisabled = field.disabled || field.readOnly;
       control = (
         <div className="flex gap-1">
           {[1, 2, 3, 4, 5].map((n) => (
             <button
               key={n}
               type="button"
+              disabled={isFieldDisabled}
               onClick={() => setAnswer(field.id, n)}
-              className="text-2xl transition-transform hover:scale-110"
+              className="text-2xl transition-transform hover:scale-110 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
               style={{ color: n <= rating ? accent : '#E5E7EB' }}
             >
               <i className="fa-solid fa-star"></i>
@@ -537,6 +732,96 @@ export default function FormPage({ fontSizeScale, onNavigate, slug }: FormPagePr
             style={{ accentColor: accent }}
           />
           <span className="text-xs font-mono font-bold text-[#1F3A5F] w-10 text-center">{value ?? field.validation?.min ?? 0}</span>
+        </div>
+      );
+    } else if (field.type === 'address' || field.type === 'location') {
+      const addr = (value && typeof value === 'object') ? value : {};
+      const updateAddr = (key: string, val: any) => setAnswer(field.id, { ...addr, [key]: val });
+      const isLocating = !!geoLocating[field.id];
+      control = (
+        <div className="space-y-2">
+          <textarea
+            id={field.id}
+            rows={2}
+            value={addr.full || ''}
+            disabled={field.disabled || field.readOnly}
+            placeholder={field.placeholder || 'آدرس کامل را وارد کنید...'}
+            onChange={(e) => updateAddr('full', e.target.value)}
+            className={baseInputClass}
+            style={{ ['--tw-ring-color' as any]: accent }}
+          />
+          {field.includeProvince && (
+            <div className="grid grid-cols-2 gap-2">
+              <select
+                value={addr.province || ''}
+                onChange={(e) => updateAddr('province', e.target.value)}
+                className={baseInputClass}
+                style={{ ['--tw-ring-color' as any]: accent }}
+              >
+                <option value="">— استان —</option>
+                {IRAN_PROVINCES.map((p) => (
+                  <option key={p} value={p}>{p}</option>
+                ))}
+              </select>
+              <input
+                type="text"
+                value={addr.city || ''}
+                onChange={(e) => updateAddr('city', e.target.value)}
+                placeholder="شهر"
+                className={baseInputClass}
+                style={{ ['--tw-ring-color' as any]: accent }}
+              />
+            </div>
+          )}
+          {field.includePostalCode && (
+            <input
+              type="text"
+              inputMode="numeric"
+              maxLength={10}
+              value={addr.postalCode || ''}
+              onChange={(e) => updateAddr('postalCode', e.target.value.replace(/\D/g, '').slice(0, 10))}
+              placeholder="کد پستی ده‌رقمی"
+              dir="ltr"
+              className={baseInputClass}
+              style={{ ['--tw-ring-color' as any]: accent }}
+            />
+          )}
+          {field.includeGeoCoordinates && (
+            <div className="flex items-center gap-2 flex-wrap">
+              <button
+                type="button"
+                onClick={() => {
+                  if (!navigator.geolocation) return;
+                  setGeoLocating((prev) => ({ ...prev, [field.id]: true }));
+                  navigator.geolocation.getCurrentPosition(
+                    (pos) => {
+                      setAnswer(field.id, { ...addr, lat: pos.coords.latitude, lng: pos.coords.longitude });
+                      setGeoLocating((prev) => ({ ...prev, [field.id]: false }));
+                    },
+                    () => setGeoLocating((prev) => ({ ...prev, [field.id]: false })),
+                    { enableHighAccuracy: true, timeout: 10000 }
+                  );
+                }}
+                disabled={isLocating}
+                className="px-3 py-2 rounded-lg text-xs font-bold text-white flex items-center gap-1.5 disabled:opacity-60"
+                style={{ backgroundColor: accent }}
+              >
+                <i className={`fa-solid ${isLocating ? 'fa-circle-notch fa-spin' : 'fa-location-crosshairs'}`}></i>
+                {isLocating ? 'در حال دریافت موقعیت...' : 'دریافت موقعیت فعلی از نقشه'}
+              </button>
+              {addr.lat && addr.lng && (
+                <a
+                  href={`https://www.google.com/maps?q=${addr.lat},${addr.lng}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-[11px] font-bold underline"
+                  style={{ color: accent }}
+                >
+                  مشاهده روی نقشه ({addr.lat.toFixed(5)}, {addr.lng.toFixed(5)})
+                </a>
+              )}
+            </div>
+          )}
         </div>
       );
     } else if (field.type === 'file' || field.type === 'image') {
@@ -605,6 +890,7 @@ export default function FormPage({ fontSizeScale, onNavigate, slug }: FormPagePr
           value={value || ''}
           disabled={field.disabled || field.readOnly}
           placeholder={field.placeholder}
+          maxLength={field.validation?.maxLength}
           onChange={(e) => setAnswer(field.id, e.target.value)}
           className={baseInputClass}
           dir={field.type === 'email' || field.type === 'url' ? 'ltr' : undefined}
