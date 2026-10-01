@@ -736,6 +736,43 @@ const computeInitialAnswers = (fields: FormField[]): Record<string, any> => {
   return defaults;
 };
 
+const REVIEW_IMAGE_EXT_PATTERN = /\.(png|jpe?g|gif|webp|svg)(\?|#|$)/i;
+
+/** برچسب گزینهٔ انتخاب‌شده را از روی options فیلد پیدا می‌کند — برای select/radio/checkbox/multiselect در صفحهٔ بازبینی */
+const resolveReviewOptionLabel = (field: FormField, raw: any): string => {
+  const opt = (field.options || []).find((o) => o.value === raw);
+  return opt ? opt.label : String(raw);
+};
+
+/** نمایش خلاصهٔ هر پاسخ در صفحهٔ «بازبینی پیش از ثبت نهایی» — متناسب با نوع فیلد */
+const formatAnswerForReview = (field: FormField, value: any): React.ReactNode => {
+  const isEmpty = value === undefined || value === null || value === '' || (Array.isArray(value) && value.length === 0);
+  if (isEmpty) return <span className="text-gray-400">(خالی)</span>;
+
+  if (field.type === 'address' || field.type === 'location') {
+    const addr = typeof value === 'object' ? value : {};
+    const parts = [addr.full, addr.province, addr.city, addr.postalCode ? `کدپستی: ${addr.postalCode}` : null].filter(Boolean);
+    return parts.length > 0 ? parts.join('، ') : '-';
+  }
+  if (field.type === 'file' || field.type === 'image' || field.type === 'signature') {
+    if (typeof value !== 'string') return '-';
+    const isImage = value.startsWith('data:image') || REVIEW_IMAGE_EXT_PATTERN.test(value);
+    if (isImage) {
+      return <img src={value} alt={field.label} className="h-16 rounded-lg border border-gray-200 inline-block" />;
+    }
+    return 'فایل انتخاب شد';
+  }
+  if (field.type === 'yesno') return value === 'yes' ? (field.yesLabel || 'بله') : (field.noLabel || 'خیر');
+  if (field.type === 'switch') return value ? (field.placeholder || 'فعال') : 'غیرفعال';
+  if (Array.isArray(value)) return value.map((v) => resolveReviewOptionLabel(field, v)).join('، ');
+  if (['select', 'radio', 'multiselect', 'checkbox'].includes(field.type)) return resolveReviewOptionLabel(field, value);
+  if (['number', 'currency', 'percentage', 'slider'].includes(field.type) && typeof value === 'number') {
+    const unit = field.type === 'currency' ? (field.currencyUnit || 'تومان') : field.type === 'percentage' ? '٪' : field.numberUnit;
+    return unit ? `${value} ${unit}` : String(value);
+  }
+  return String(value);
+};
+
 /** انتخاب‌گر تاریخ شمسی (Jalali) — برای فیلدهای date/datetime وقتی calendarType روی jalali تنظیم شده */
 const JalaliDateField: React.FC<{
   value: string;
@@ -795,6 +832,7 @@ export default function FormPage({ fontSizeScale, onNavigate, slug }: FormPagePr
   const [dragOverFieldId, setDragOverFieldId] = useState<string | null>(null);
   const [geoLocating, setGeoLocating] = useState<Record<string, boolean>>({});
   const [submitting, setSubmitting] = useState(false);
+  const [isReviewing, setIsReviewing] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [result, setResult] = useState<{ trackingCode: string; scoreTotal: number | null; gradeLabel: string | null } | null>(null);
@@ -813,6 +851,7 @@ export default function FormPage({ fontSizeScale, onNavigate, slug }: FormPagePr
     setNotFound(false);
     setForm(null);
     setResult(null);
+    setIsReviewing(false);
     startedAtRef.current = Date.now();
     API<{ data: FormDto }>(`forms/slug/${encodeURIComponent(slug)}/public`)
       .then((res) => {
@@ -916,6 +955,7 @@ export default function FormPage({ fontSizeScale, onNavigate, slug }: FormPagePr
   const handleStartOver = () => {
     if (!form) return;
     setResult(null);
+    setIsReviewing(false);
     setSubmitError(null);
     setFieldErrors({});
     setPendingFiles({});
@@ -1160,7 +1200,8 @@ export default function FormPage({ fontSizeScale, onNavigate, slug }: FormPagePr
     return Object.keys(errors).length === 0;
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  /** کلیک روی «ارسال فرم» در حالت پر کردن — فقط اعتبارسنجی می‌کند و وارد مرحلهٔ پیش‌نمایش/بازبینی می‌شود؛ ثبت واقعی هنوز انجام نمی‌شود */
+  const handleReviewSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!form || submitting) return;
     setSubmitError(null);
@@ -1168,12 +1209,27 @@ export default function FormPage({ fontSizeScale, onNavigate, slug }: FormPagePr
       setSubmitError('لطفاً فیلدهای الزامی را تکمیل کنید.');
       return;
     }
+    for (const field of securityFields) {
+      if (!securityTokens[field.id]) {
+        setSubmitError('کد امنیتی هنوز آماده نشده — لحظه‌ای صبر کنید و دوباره تلاش کنید.');
+        return;
+      }
+    }
+    setIsReviewing(true);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  /** ثبت نهایی واقعی — فقط از دکمهٔ «تایید و ثبت نهایی» در صفحهٔ بازبینی صدا زده می‌شود */
+  const handleSubmit = async () => {
+    if (!form || submitting) return;
+    setSubmitError(null);
 
     const securityChallenges: Record<string, { token: string; value: string }> = {};
     for (const field of securityFields) {
       const tok = securityTokens[field.id];
       if (!tok) {
         setSubmitError('کد امنیتی هنوز آماده نشده — لحظه‌ای صبر کنید و دوباره تلاش کنید.');
+        setIsReviewing(false);
         return;
       }
       securityChallenges[field.id] = { token: tok.token, value: securityValues[field.id] || '' };
@@ -1226,6 +1282,7 @@ export default function FormPage({ fontSizeScale, onNavigate, slug }: FormPagePr
         scoreTotal: res.data.score_total,
         gradeLabel: res.data.grade_label,
       });
+      setIsReviewing(false);
       window.scrollTo({ top: 0, behavior: 'smooth' });
     } catch (err: any) {
       if (err?.errors) {
@@ -1238,6 +1295,9 @@ export default function FormPage({ fontSizeScale, onNavigate, slug }: FormPagePr
         securityFields.forEach(refreshChallenge);
       }
       setSubmitError(err?.message || 'ارسال فرم با خطا مواجه شد. لطفاً دوباره تلاش کنید.');
+      // خطا را روی خودِ فرم (نه صفحهٔ فقط‌خواندنی بازبینی) نشان بده تا فیلد مشکل‌دار قابل‌مشاهده و اصلاح باشد
+      setIsReviewing(false);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     } finally {
       setSubmitting(false);
     }
@@ -1628,7 +1688,10 @@ export default function FormPage({ fontSizeScale, onNavigate, slug }: FormPagePr
             // به ltr + آینه‌کردن با scaleX(-1) هم نمایش و هم محاسبهٔ کلیک با هم هماهنگ می‌مانند
             style={{ accentColor: accent, transform: 'scaleX(-1)' }}
           />
-          <span className="text-xs font-mono font-bold text-[#1F3A5F] w-10 text-center">{value ?? field.validation?.min ?? 0}</span>
+          <span className="text-xs font-mono font-bold text-[#1F3A5F] text-center whitespace-nowrap">
+            {value ?? field.validation?.min ?? 0}
+            {field.numberUnit ? ` ${field.numberUnit}` : ''}
+          </span>
         </div>
       );
     } else if (field.type === 'address' || field.type === 'location') {
@@ -2005,11 +2068,11 @@ export default function FormPage({ fontSizeScale, onNavigate, slug }: FormPagePr
           </motion.div>
         )}
 
-        {!loading && !notFound && form && !result && (
+        {!loading && !notFound && form && !result && !isReviewing && (
           <motion.form
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
-            onSubmit={handleSubmit}
+            onSubmit={handleReviewSubmit}
             className="glass-panel border border-white/60 rounded-2xl p-6 sm:p-8 space-y-6"
           >
             <div>
@@ -2029,20 +2092,74 @@ export default function FormPage({ fontSizeScale, onNavigate, slug }: FormPagePr
 
             <button
               type="submit"
-              disabled={submitting}
-              className="w-full py-3 rounded-xl text-white text-sm font-bold transition-all hover:scale-[1.01] active:scale-95 disabled:opacity-60 flex items-center justify-center gap-2"
+              className="w-full py-3 rounded-xl text-white text-sm font-bold transition-all hover:scale-[1.01] active:scale-95 flex items-center justify-center gap-2"
               style={{ backgroundColor: accent }}
             >
-              {submitting ? (
-                <>
-                  <i className="fa-solid fa-circle-notch fa-spin"></i>
-                  در حال ارسال...
-                </>
-              ) : (
-                'ارسال فرم'
-              )}
+              بازبینی نهایی پیش از ثبت
             </button>
           </motion.form>
+        )}
+
+        {!loading && !notFound && form && !result && isReviewing && (
+          <motion.div
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="glass-panel border border-white/60 rounded-2xl p-6 sm:p-8 space-y-6"
+          >
+            <div>
+              <h1 className="text-xl font-black">بازبینی پاسخ‌های شما</h1>
+              <p className="text-xs text-gray-500 mt-1.5">
+                پیش از ثبت نهایی، پاسخ‌های زیر را بررسی کنید. اگر نیاز به اصلاح دارید، روی «ویرایش فرم» بزنید.
+              </p>
+            </div>
+
+            <div className="divide-y divide-gray-100">
+              {visibleFields
+                .filter((field) => field.type !== 'security')
+                .map((field) => (
+                  <div key={field.id} className="py-3 flex items-start justify-between gap-4">
+                    <span className="text-xs font-bold text-gray-500 shrink-0">{field.label}</span>
+                    <span className="text-xs font-semibold text-[#1F3A5F] text-left">
+                      {formatAnswerForReview(field, answers[field.id])}
+                    </span>
+                  </div>
+                ))}
+            </div>
+
+            {submitError && (
+              <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-xs font-bold text-red-600">
+                {submitError}
+              </div>
+            )}
+
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => setIsReviewing(false)}
+                disabled={submitting}
+                className="flex-1 py-3 rounded-xl text-sm font-bold border transition-all hover:scale-[1.01] active:scale-95 disabled:opacity-60"
+                style={{ borderColor: accent, color: accent }}
+              >
+                ویرایش فرم
+              </button>
+              <button
+                type="button"
+                onClick={() => void handleSubmit()}
+                disabled={submitting}
+                className="flex-1 py-3 rounded-xl text-white text-sm font-bold transition-all hover:scale-[1.01] active:scale-95 disabled:opacity-60 flex items-center justify-center gap-2"
+                style={{ backgroundColor: accent }}
+              >
+                {submitting ? (
+                  <>
+                    <i className="fa-solid fa-circle-notch fa-spin"></i>
+                    در حال ثبت...
+                  </>
+                ) : (
+                  'تایید و ثبت نهایی'
+                )}
+              </button>
+            </div>
+          </motion.div>
         )}
       </div>
     </div>
