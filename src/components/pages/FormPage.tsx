@@ -709,6 +709,33 @@ const gregorianIsoToJalaliString = (iso: string): string => {
   }
 };
 
+/**
+ * مقادیر اولیهٔ پاسخ‌ها را از defaultValue/prefill/پیش‌فرض تاریخ-ساعت فیلدها می‌سازد —
+ * هم موقع بارگذاری اول فرم استفاده می‌شود، هم موقع «تکمیل مجدد فرم» بعد از ثبت موفق.
+ */
+const computeInitialAnswers = (fields: FormField[]): Record<string, any> => {
+  const defaults: Record<string, any> = {};
+  const queryParams = new URLSearchParams(window.location.search);
+  fields.forEach((f) => {
+    if (f.defaultValue !== undefined && f.defaultValue !== null) defaults[f.id] = f.defaultValue;
+    if (f.prefillSource === 'query_param' && f.prefillQueryParam) {
+      const fromQuery = queryParams.get(f.prefillQueryParam);
+      if (fromQuery) defaults[f.id] = fromQuery;
+    }
+    if ((f.type === 'date' || f.type === 'datetime') && f.defaultDateOption && f.defaultDateOption !== 'none') {
+      const isJalali = (f.calendarType || 'jalali') === 'jalali';
+      if (f.defaultDateOption === 'today') {
+        defaults[f.id] = isJalali ? todayJalaliString() : todayIsoString();
+      } else if (f.defaultDateOption === 'custom' && f.defaultValue) {
+        defaults[f.id] = isJalali ? gregorianIsoToJalaliString(f.defaultValue) : f.defaultValue;
+      }
+    } else if (f.type === 'time' && f.defaultDateOption === 'today') {
+      defaults[f.id] = new Date().toTimeString().slice(0, 5);
+    }
+  });
+  return defaults;
+};
+
 /** انتخاب‌گر تاریخ شمسی (Jalali) — برای فیلدهای date/datetime وقتی calendarType روی jalali تنظیم شده */
 const JalaliDateField: React.FC<{
   value: string;
@@ -791,30 +818,7 @@ export default function FormPage({ fontSizeScale, onNavigate, slug }: FormPagePr
       .then((res) => {
         if (cancelled) return;
         setForm(res.data);
-        const defaults: Record<string, any> = {};
-        const queryParams = new URLSearchParams(window.location.search);
-        (res.data.fields || []).forEach((f) => {
-          if (f.defaultValue !== undefined && f.defaultValue !== null) defaults[f.id] = f.defaultValue;
-          // پرشدن خودکار از پارامتر URL — سایر مقادیر prefillSource (نام/ایمیل/... کاربر)
-          // نیاز به کاربر واردشده (لاگین) دارند که فرم عمومی فاقد آن است
-          if (f.prefillSource === 'query_param' && f.prefillQueryParam) {
-            const fromQuery = queryParams.get(f.prefillQueryParam);
-            if (fromQuery) defaults[f.id] = fromQuery;
-          }
-          // مقدار پیش‌فرض تاریخ/ساعت — «امروز/اکنون» همیشه محاسبه می‌شود، «سفارشی» هم اگر تقویم
-          // شمسی باشد باید از میلادیِ ذخیره‌شده در defaultValue به شمسی تبدیل شود
-          if ((f.type === 'date' || f.type === 'datetime') && f.defaultDateOption && f.defaultDateOption !== 'none') {
-            const isJalali = (f.calendarType || 'jalali') === 'jalali';
-            if (f.defaultDateOption === 'today') {
-              defaults[f.id] = isJalali ? todayJalaliString() : todayIsoString();
-            } else if (f.defaultDateOption === 'custom' && f.defaultValue) {
-              defaults[f.id] = isJalali ? gregorianIsoToJalaliString(f.defaultValue) : f.defaultValue;
-            }
-          } else if (f.type === 'time' && f.defaultDateOption === 'today') {
-            defaults[f.id] = new Date().toTimeString().slice(0, 5);
-          }
-        });
-        setAnswers(defaults);
+        setAnswers(computeInitialAnswers(res.data.fields || []));
       })
       .catch(() => {
         if (!cancelled) setNotFound(true);
@@ -906,6 +910,24 @@ export default function FormPage({ fontSizeScale, onNavigate, slug }: FormPagePr
     });
     setSecurityValues((prev) => ({ ...prev, [field.id]: '' }));
     fetchChallenge(field);
+  };
+
+  /** تکمیل مجدد فرم بعد از ثبت موفق — همهٔ وضعیت فرم (پاسخ‌ها، خطاها، کپچا) از نو مقداردهی می‌شود */
+  const handleStartOver = () => {
+    if (!form) return;
+    setResult(null);
+    setSubmitError(null);
+    setFieldErrors({});
+    setPendingFiles({});
+    setUploading({});
+    setAnswers(computeInitialAnswers(form.fields || []));
+    setSecurityValues({});
+    setSecurityTokens({});
+    // چالش‌های امنیتی قبلی روی سرور مصرف/منقضی شده‌اند — باید دوباره درخواست شوند
+    // (نه فقط state پاک شود، وگرنه مثل باگ قبلیِ دکمهٔ رفرش در لودینگ گیر می‌کند)
+    securityFields.forEach((field) => fetchChallenge(field));
+    startedAtRef.current = Date.now();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const setAnswer = (fieldId: string, value: any) => {
@@ -1964,13 +1986,22 @@ export default function FormPage({ fontSizeScale, onNavigate, slug }: FormPagePr
                 نتیجه: {result.gradeLabel} {result.scoreTotal !== null && `(امتیاز: ${result.scoreTotal})`}
               </p>
             )}
-            <button
-              onClick={() => onNavigate('home')}
-              className="mt-6 px-5 py-2.5 rounded-xl text-white text-xs font-bold transition-transform hover:scale-[1.02] active:scale-95"
-              style={{ backgroundColor: accent }}
-            >
-              بازگشت به صفحه اصلی
-            </button>
+            <div className="mt-6 flex items-center justify-center gap-3 flex-wrap">
+              <button
+                onClick={handleStartOver}
+                className="px-5 py-2.5 rounded-xl text-xs font-bold border transition-transform hover:scale-[1.02] active:scale-95"
+                style={{ borderColor: accent, color: accent }}
+              >
+                تکمیل مجدد فرم
+              </button>
+              <button
+                onClick={() => onNavigate('home')}
+                className="px-5 py-2.5 rounded-xl text-white text-xs font-bold transition-transform hover:scale-[1.02] active:scale-95"
+                style={{ backgroundColor: accent }}
+              >
+                بازگشت به صفحه اصلی
+              </button>
+            </div>
           </motion.div>
         )}
 
