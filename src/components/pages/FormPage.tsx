@@ -52,6 +52,7 @@ interface FormField {
     blockFreeEmailProviders?: boolean;
     disallowPastDates?: boolean;
     disallowFutureDates?: boolean;
+    allowedUrlProtocols?: string[];
   };
   // Text & textarea
   charTypeAllowed?: 'any' | 'persian_letters' | 'english_letters' | 'numeric' | 'alphanumeric';
@@ -86,6 +87,9 @@ interface FormField {
   ratingIconType?: 'star' | 'heart' | 'emoji' | 'number';
   startRatingLabel?: string;
   endRatingLabel?: string;
+  // Digital signature
+  signaturePadType?: 'draw' | 'type' | 'upload';
+  signatureCanvasHeight?: number;
 }
 
 interface FormTheme {
@@ -108,11 +112,10 @@ interface FormDto {
   settings: FormSettings | null;
 }
 
-const TEXT_LIKE_TYPES = new Set(['text', 'email', 'password', 'url', 'richtext', 'matrix', 'likert', 'ranking', 'cascading', 'qrcode', 'signature']);
+const TEXT_LIKE_TYPES = new Set(['text', 'email', 'password', 'richtext', 'likert', 'ranking', 'cascading', 'qrcode']);
 const INPUT_TYPE_MAP: Record<string, string> = {
   email: 'email',
   password: 'password',
-  url: 'url',
   time: 'time',
   color: 'color',
 };
@@ -253,6 +256,52 @@ const formatNumberDisplay = (value: number, decimalPlaces = 0, useThousandSepara
   const [intPart, decPart] = fixed.split('.');
   const withSeparators = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
   return decPart ? `${withSeparators}.${decPart}` : withSeparators;
+};
+
+const PERSIAN_ONES = ['', 'یک', 'دو', 'سه', 'چهار', 'پنج', 'شش', 'هفت', 'هشت', 'نه'];
+const PERSIAN_TEENS = ['ده', 'یازده', 'دوازده', 'سیزده', 'چهارده', 'پانزده', 'شانزده', 'هفده', 'هجده', 'نوزده'];
+const PERSIAN_TENS = ['', '', 'بیست', 'سی', 'چهل', 'پنجاه', 'شصت', 'هفتاد', 'هشتاد', 'نود'];
+const PERSIAN_HUNDREDS = ['', 'صد', 'دویست', 'سیصد', 'چهارصد', 'پانصد', 'ششصد', 'هفتصد', 'هشتصد', 'نهصد'];
+const PERSIAN_SCALES = ['', 'هزار', 'میلیون', 'میلیارد', 'تریلیون'];
+
+const threeDigitToPersianWords = (n: number): string => {
+  const h = Math.floor(n / 100);
+  const rem = n % 100;
+  const parts: string[] = [];
+  if (h > 0) parts.push(PERSIAN_HUNDREDS[h]);
+  if (rem >= 10 && rem < 20) {
+    parts.push(PERSIAN_TEENS[rem - 10]);
+  } else {
+    const t = Math.floor(rem / 10);
+    const o = rem % 10;
+    if (t > 0) parts.push(PERSIAN_TENS[t]);
+    if (o > 0) parts.push(PERSIAN_ONES[o]);
+  }
+  return parts.join(' و ');
+};
+
+/** تبدیل عدد به حروف فارسی — برای راهنمای زیر فیلدهای عددی/مبلغ وقتی جداکنندهٔ هزارگان فعال است */
+const numberToPersianWords = (num: number): string => {
+  if (!isFinite(num)) return '';
+  if (num === 0) return 'صفر';
+  if (num < 0) return 'منفی ' + numberToPersianWords(-num);
+  const intPart = Math.floor(Math.abs(num));
+  const groups: number[] = [];
+  let n = intPart;
+  if (n === 0) groups.push(0);
+  while (n > 0) {
+    groups.unshift(n % 1000);
+    n = Math.floor(n / 1000);
+  }
+  const parts: string[] = [];
+  const offset = groups.length - 1;
+  groups.forEach((g, idx) => {
+    if (g === 0) return;
+    const scaleIdx = offset - idx;
+    const words = threeDigitToPersianWords(g);
+    parts.push(scaleIdx > 0 ? `${words} ${PERSIAN_SCALES[scaleIdx]}` : words);
+  });
+  return parts.join(' و ') || 'صفر';
 };
 
 /**
@@ -402,6 +451,105 @@ const ToggleSwitch: React.FC<{
     )}
   </div>
 );
+
+/** کادر امضای دیجیتال با ترسیم — هم ماوس هم لمسی (موبایل/تبلت) */
+const SignatureCanvasField: React.FC<{
+  value: string;
+  onChange: (dataUrl: string) => void;
+  height: number;
+  color?: string;
+  disabled?: boolean;
+}> = ({ value, onChange, height, color, disabled }) => {
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const isDrawingRef = useRef(false);
+  const hasDrawnRef = useRef(false);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    const container = containerRef.current;
+    if (!canvas || !container) return;
+    const width = container.clientWidth || 400;
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    ctx.lineWidth = 2.5;
+    ctx.lineCap = 'round';
+    ctx.strokeStyle = color || '#1F3A5F';
+    if (value) {
+      const img = new Image();
+      img.onload = () => ctx.drawImage(img, 0, 0, width, height);
+      img.src = value;
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const getPos = (e: React.MouseEvent | React.TouchEvent) => {
+    const canvas = canvasRef.current!;
+    const rect = canvas.getBoundingClientRect();
+    const point = 'touches' in e ? e.touches[0] : e;
+    return { x: point.clientX - rect.left, y: point.clientY - rect.top };
+  };
+
+  const start = (e: React.MouseEvent | React.TouchEvent) => {
+    if (disabled) return;
+    isDrawingRef.current = true;
+    const ctx = canvasRef.current?.getContext('2d');
+    const { x, y } = getPos(e);
+    ctx?.beginPath();
+    ctx?.moveTo(x, y);
+  };
+  const move = (e: React.MouseEvent | React.TouchEvent) => {
+    if (!isDrawingRef.current || disabled) return;
+    if ('touches' in e) e.preventDefault();
+    const ctx = canvasRef.current?.getContext('2d');
+    const { x, y } = getPos(e);
+    ctx?.lineTo(x, y);
+    ctx?.stroke();
+    hasDrawnRef.current = true;
+  };
+  const end = () => {
+    if (!isDrawingRef.current) return;
+    isDrawingRef.current = false;
+    if (hasDrawnRef.current && canvasRef.current) {
+      onChange(canvasRef.current.toDataURL('image/png'));
+    }
+  };
+  const clear = () => {
+    const canvas = canvasRef.current;
+    const ctx = canvas?.getContext('2d');
+    if (canvas && ctx) ctx.clearRect(0, 0, canvas.width, canvas.height);
+    hasDrawnRef.current = false;
+    onChange('');
+  };
+
+  return (
+    <div className="space-y-2">
+      <div ref={containerRef} className="border border-gray-200 rounded-xl bg-white overflow-hidden" style={{ height }}>
+        <canvas
+          ref={canvasRef}
+          className={`w-full h-full touch-none ${disabled ? '' : 'cursor-crosshair'}`}
+          onMouseDown={start}
+          onMouseMove={move}
+          onMouseUp={end}
+          onMouseLeave={end}
+          onTouchStart={start}
+          onTouchMove={move}
+          onTouchEnd={end}
+        />
+      </div>
+      <button
+        type="button"
+        onClick={clear}
+        disabled={disabled}
+        className="text-[11px] font-bold text-red-500 hover:underline disabled:opacity-50 disabled:cursor-not-allowed"
+      >
+        پاک‌سازی امضا
+      </button>
+    </div>
+  );
+};
 
 const SelectField: React.FC<{
   field: FormField;
@@ -770,6 +918,36 @@ export default function FormPage({ fontSizeScale, onNavigate, slug }: FormPagePr
     });
   };
 
+  /**
+   * تایپ زنده با جداکنندهٔ هزارگان — چون input بومی type="number" کاما را قبول نمی‌کند،
+   * از type="text" با فرمت‌دهی دستی استفاده می‌شود؛ موقعیت نشانگر بر اساس تعداد رقم‌های
+   * قبل از آن (نه موقعیت کاراکتری خام) حفظ می‌شود تا با افزوده‌شدن/حذف‌شدن کاما نپرد.
+   */
+  const handleFormattedNumberChange = (field: FormField, el: HTMLInputElement) => {
+    const prevValue = el.value;
+    const prevCursor = el.selectionStart ?? prevValue.length;
+    const digitsBeforeCursor = prevValue.slice(0, prevCursor).replace(/[^\d.]/g, '').length;
+
+    const raw = prevValue.replace(/[^\d.]/g, '');
+    const num = raw === '' || raw === '.' ? null : Number(raw);
+    setAnswer(field.id, num !== null && !isNaN(num) ? num : null);
+
+    requestAnimationFrame(() => {
+      if (!el.isConnected) return;
+      const newValue = el.value;
+      let count = 0;
+      let pos = newValue.length;
+      for (let i = 0; i < newValue.length; i++) {
+        if (/[\d.]/.test(newValue[i])) count++;
+        if (count === digitsBeforeCursor) {
+          pos = i + 1;
+          break;
+        }
+      }
+      el.setSelectionRange(pos, pos);
+    });
+  };
+
   /** مَسک زندهٔ فیلد شماره تلفن — روی هر ضربهٔ کیبورد بر اساس phoneFormat فرمت می‌شود */
   const handlePhoneChange = (field: FormField, rawInput: string) => {
     const format = field.validation?.phoneFormat;
@@ -906,6 +1084,31 @@ export default function FormPage({ fontSizeScale, onNavigate, slug }: FormPagePr
               errors[field.id] = customMsg || 'امکان انتخاب تاریخ‌های آینده وجود ندارد.';
               continue;
             }
+          }
+        }
+        if (field.type === 'url') {
+          const allowedProtocols = field.validation?.allowedUrlProtocols && field.validation.allowedUrlProtocols.length > 0
+            ? field.validation.allowedUrlProtocols
+            : ['https', 'http'];
+          const trimmed = v.trim();
+          const protocolMatch = trimmed.match(/^([a-zA-Z]+):/);
+          const usedProtocol = protocolMatch ? protocolMatch[1].toLowerCase() : null;
+
+          if (!usedProtocol || !allowedProtocols.includes(usedProtocol)) {
+            errors[field.id] = customMsg || `پیوند باید با یکی از این پروتکل‌ها شروع شود: ${allowedProtocols.map((p) => (p === 'mailto' || p === 'tel' ? `${p}:` : `${p}://`)).join('، ')}`;
+            continue;
+          }
+          let isValidUrlFormat = false;
+          if (usedProtocol === 'mailto') {
+            isValidUrlFormat = /^mailto:[^\s@]+@[^\s@]+\.[^\s@]+$/i.test(trimmed);
+          } else if (usedProtocol === 'tel') {
+            isValidUrlFormat = /^tel:\+?[0-9][0-9\-\s]{4,}$/i.test(trimmed);
+          } else {
+            isValidUrlFormat = /^[a-z]+:\/\/[-a-zA-Z0-9@:%._+~#=]{1,256}\.[a-zA-Z]{2,}\b([-a-zA-Z0-9()@:%_+.~#?&/=]*)$/i.test(trimmed);
+          }
+          if (!isValidUrlFormat) {
+            errors[field.id] = customMsg || 'فرمت پیوند واردشده معتبر نیست.';
+            continue;
           }
         }
         const charRule = field.charTypeAllowed && field.charTypeAllowed !== 'any' ? CHAR_TYPE_RULES[field.charTypeAllowed] : null;
@@ -1108,23 +1311,40 @@ export default function FormPage({ fontSizeScale, onNavigate, slug }: FormPagePr
       const unitLabel = field.type === 'currency' ? (field.currencyUnit || 'تومان') : field.type === 'percentage' ? '٪' : field.numberUnit;
       const isCalculated = !!field.autoCalculationEnabled;
       const numericValue = typeof value === 'number' ? value : (value === '' || value === null || value === undefined ? null : Number(value));
+      const useSeparator = field.useThousandSeparator !== false;
       control = (
         <div>
           <div className="relative">
-            <input
-              id={field.id}
-              type="number"
-              value={value ?? ''}
-              disabled={field.disabled || field.readOnly || isCalculated}
-              readOnly={isCalculated}
-              min={field.validation?.min}
-              max={field.validation?.max}
-              step={field.decimalPlaces ? 1 / Math.pow(10, field.decimalPlaces) : undefined}
-              placeholder={field.placeholder}
-              onChange={(e) => setAnswer(field.id, e.target.value === '' ? null : Number(e.target.value))}
-              className={`${baseInputClass} ${isCalculated ? 'bg-gray-100 text-gray-500' : ''}`}
-              style={{ ['--tw-ring-color' as any]: accent, paddingLeft: unitLabel ? '4rem' : undefined }}
-            />
+            {useSeparator ? (
+              <input
+                id={field.id}
+                type="text"
+                inputMode="decimal"
+                value={numericValue !== null && !isNaN(numericValue) ? formatNumberDisplay(numericValue, field.decimalPlaces || 0, true) : ''}
+                disabled={field.disabled || field.readOnly || isCalculated}
+                readOnly={isCalculated}
+                placeholder={field.placeholder}
+                onChange={(e) => handleFormattedNumberChange(field, e.target)}
+                dir="ltr"
+                className={`${baseInputClass} text-left ${isCalculated ? 'bg-gray-100 text-gray-500' : ''}`}
+                style={{ ['--tw-ring-color' as any]: accent, paddingLeft: unitLabel ? '4rem' : undefined }}
+              />
+            ) : (
+              <input
+                id={field.id}
+                type="number"
+                value={value ?? ''}
+                disabled={field.disabled || field.readOnly || isCalculated}
+                readOnly={isCalculated}
+                min={field.validation?.min}
+                max={field.validation?.max}
+                step={field.decimalPlaces ? 1 / Math.pow(10, field.decimalPlaces) : undefined}
+                placeholder={field.placeholder}
+                onChange={(e) => setAnswer(field.id, e.target.value === '' ? null : Number(e.target.value))}
+                className={`${baseInputClass} ${isCalculated ? 'bg-gray-100 text-gray-500' : ''}`}
+                style={{ ['--tw-ring-color' as any]: accent, paddingLeft: unitLabel ? '4rem' : undefined }}
+              />
+            )}
             {unitLabel && (
               <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-gray-400 pointer-events-none select-none">
                 {unitLabel}
@@ -1134,8 +1354,11 @@ export default function FormPage({ fontSizeScale, onNavigate, slug }: FormPagePr
           {numericValue !== null && !isNaN(numericValue) && (
             <p className="text-[11px] text-gray-400 mt-1">
               {isCalculated && 'مقدار محاسبه‌شده: '}
-              {formatNumberDisplay(numericValue, field.decimalPlaces || 0, field.useThousandSeparator !== false)}
+              {formatNumberDisplay(numericValue, field.decimalPlaces || 0, useSeparator)}
               {unitLabel ? ` ${unitLabel}` : ''}
+              {useSeparator && (
+                <span className="block mt-0.5">{numberToPersianWords(numericValue)}{unitLabel ? ` ${unitLabel}` : ''}</span>
+              )}
             </p>
           )}
         </div>
@@ -1479,6 +1702,85 @@ export default function FormPage({ fontSizeScale, onNavigate, slug }: FormPagePr
           )}
         </div>
       );
+    } else if (field.type === 'signature') {
+      const padType = field.signaturePadType || 'draw';
+      const isFieldDisabled = field.disabled || field.readOnly;
+      if (padType === 'type') {
+        control = (
+          <input
+            id={field.id}
+            type="text"
+            value={value || ''}
+            disabled={isFieldDisabled}
+            placeholder={field.placeholder || 'نام خود را به‌عنوان امضا تایپ کنید...'}
+            onChange={(e) => setAnswer(field.id, e.target.value)}
+            className={baseInputClass}
+            style={{
+              ['--tw-ring-color' as any]: accent,
+              fontFamily: "'Lucida Handwriting', 'Brush Script MT', cursive",
+              fontSize: '1.4rem',
+              color: field.iconColor || '#1F3A5F',
+            }}
+          />
+        );
+      } else if (padType === 'upload') {
+        const isDropDisabled = uploading[field.id] || submitting;
+        const isDragOver = dragOverFieldId === field.id;
+        control = (
+          <div>
+            <label
+              htmlFor={`sig-upload-${field.id}`}
+              onDragOver={(e) => {
+                e.preventDefault();
+                if (!isDropDisabled) setDragOverFieldId(field.id);
+              }}
+              onDragLeave={() => setDragOverFieldId((id) => (id === field.id ? null : id))}
+              onDrop={(e) => {
+                e.preventDefault();
+                setDragOverFieldId((id) => (id === field.id ? null : id));
+                if (!isDropDisabled) handleFileSelect(field, e.dataTransfer.files?.[0] || null);
+              }}
+              className={`flex flex-col items-center justify-center gap-1.5 p-5 border-2 border-dashed text-center transition-colors ${radiusClass} ${
+                isDropDisabled ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'
+              }`}
+              style={{
+                borderColor: isDragOver ? accent : '#D1D5DB',
+                backgroundColor: isDragOver ? `${accent}14` : '#FAFAFA',
+              }}
+            >
+              <i className="fa-solid fa-signature text-xl" style={{ color: field.iconColor || accent }}></i>
+              <span className="text-xs font-bold text-[#1F3A5F]">تصویر امضای اسکن‌شدهٔ خود را بارگذاری کنید</span>
+              <input
+                id={`sig-upload-${field.id}`}
+                type="file"
+                accept="image/*"
+                disabled={isDropDisabled}
+                onChange={(e) => {
+                  handleFileSelect(field, e.target.files?.[0] || null);
+                  e.target.value = '';
+                }}
+                className="hidden"
+              />
+            </label>
+            {uploading[field.id] && <p className="text-[11px] text-gray-400 mt-1">در حال آپلود...</p>}
+            {pendingFiles[field.id] && !uploading[field.id] && (
+              <p className="text-[11px] text-teal-600 mt-1 flex items-center gap-1">
+                <i className="fa-solid fa-paperclip"></i> «{pendingFiles[field.id].name}» انتخاب شد — هنگام ارسال فرم آپلود می‌شود
+              </p>
+            )}
+          </div>
+        );
+      } else {
+        control = (
+          <SignatureCanvasField
+            value={typeof value === 'string' ? value : ''}
+            onChange={(dataUrl) => setAnswer(field.id, dataUrl)}
+            height={field.signatureCanvasHeight || 160}
+            color={field.iconColor}
+            disabled={isFieldDisabled}
+          />
+        );
+      }
     } else if (field.type === 'file' || field.type === 'image') {
       const allowedExt = field.validation?.allowedExtensions;
       const acceptAttr = allowedExt && allowedExt.length > 0
@@ -1537,6 +1839,32 @@ export default function FormPage({ fontSizeScale, onNavigate, slug }: FormPagePr
           )}
         </div>
       );
+    } else if (field.type === 'url') {
+      const allowedProtocols = field.validation?.allowedUrlProtocols && field.validation.allowedUrlProtocols.length > 0
+        ? field.validation.allowedUrlProtocols
+        : ['https', 'http'];
+      const firstProto = allowedProtocols[0];
+      const examplePlaceholder = firstProto === 'mailto' ? 'mailto:name@example.com'
+        : firstProto === 'tel' ? 'tel:+989121234567'
+        : `${firstProto}://example.com`;
+      control = (
+        <div>
+          <input
+            id={field.id}
+            type="url"
+            value={value || ''}
+            disabled={field.disabled || field.readOnly}
+            placeholder={field.placeholder || examplePlaceholder}
+            onChange={(e) => setAnswer(field.id, e.target.value)}
+            className={baseInputClass}
+            dir="ltr"
+            style={{ ['--tw-ring-color' as any]: accent }}
+          />
+          <p className="text-[11px] text-gray-400 mt-1" dir="ltr">
+            {allowedProtocols.map((p) => (p === 'mailto' || p === 'tel' ? `${p}:` : `${p}://`)).join(' ، ')}
+          </p>
+        </div>
+      );
     } else if (INPUT_TYPE_MAP[field.type]) {
       control = (
         <input
@@ -1548,7 +1876,7 @@ export default function FormPage({ fontSizeScale, onNavigate, slug }: FormPagePr
           maxLength={field.validation?.maxLength}
           onChange={(e) => setAnswer(field.id, e.target.value)}
           className={baseInputClass}
-          dir={field.type === 'email' || field.type === 'url' ? 'ltr' : undefined}
+          dir={field.type === 'email' ? 'ltr' : undefined}
           style={{ ['--tw-ring-color' as any]: accent }}
         />
       );
