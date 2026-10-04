@@ -13,6 +13,7 @@ import UrbanPlanningPage from './components/pages/UrbanPlanningPage';
 import RoadsTransportPage from './components/pages/RoadsTransportPage';
 import ServicesPage from './components/pages/ServicesPage';
 import FormPage from './components/pages/FormPage';
+import SmartPagePage from './components/pages/SmartPagePage';
 import { ActivePage } from './types';
 import {
   resolveRoute,
@@ -30,11 +31,12 @@ export default function App() {
   const [selectedNewsId, setSelectedNewsId] = useState<number | null>(null);
   const [selectedServiceId, setSelectedServiceId] = useState<number | null>(null);
   const [selectedFormSlug, setSelectedFormSlug] = useState<string | null>(null);
+  const [selectedPageSlug, setSelectedPageSlug] = useState<string | null>(null);
 
   // ========== مسیریابی مبتنی بر URL ==========
 
   /** تنظیم صفحه و متا از روی RouteKey */
-  const applyRoute = (routeKey: RouteKey, extra?: { newsId?: number; newsTitle?: string; formSlug?: string }) => {
+  const applyRoute = (routeKey: RouteKey, extra?: { newsId?: number; newsTitle?: string; formSlug?: string; pageSlug?: string }) => {
     setCurrentPage(routeKey as ActivePage);
     if (routeKey === 'news') {
       setSelectedNewsId(extra?.newsId ?? null);
@@ -42,12 +44,15 @@ export default function App() {
     if (routeKey === 'form') {
       setSelectedFormSlug(extra?.formSlug ?? null);
     }
+    if (routeKey === 'page') {
+      setSelectedPageSlug(extra?.pageSlug ?? null);
+    }
     updatePageMeta(routeKey, extra?.newsTitle || undefined);
     updateCanonical(buildRoute(routeKey, extra));
   };
 
   /** به‌روزرسانی URL بدون رفرش */
-  const pushUrl = (routeKey: RouteKey, extra?: { newsId?: number; newsTitle?: string; formSlug?: string }) => {
+  const pushUrl = (routeKey: RouteKey, extra?: { newsId?: number; newsTitle?: string; formSlug?: string; pageSlug?: string }) => {
     const url = buildRoute(routeKey, extra);
     window.history.pushState({ page: routeKey, ...extra }, '', url);
     applyRoute(routeKey, extra);
@@ -56,16 +61,18 @@ export default function App() {
   /** مقداردهی اولیه از URL */
   useEffect(() => {
     const initial = getInitialRoute();
-    applyRoute(initial.page, initial.newsId ? { newsId: initial.newsId } : { formSlug: initial.formSlug });
+    applyRoute(initial.page, initial.newsId ? { newsId: initial.newsId } : initial.formSlug ? { formSlug: initial.formSlug } : { pageSlug: initial.pageSlug });
     setSelectedNewsId(initial.newsId ?? null);
     setSelectedFormSlug(initial.formSlug ?? null);
+    setSelectedPageSlug(initial.pageSlug ?? null);
 
     // گوش دادن به دکمه‌های بازگشت/جلو مرورگر
     const handlePopState = (e: PopStateEvent) => {
       const route = resolveRoute(window.location.pathname);
-      applyRoute(route.page, route.newsId ? { newsId: route.newsId } : { formSlug: route.formSlug });
+      applyRoute(route.page, route.newsId ? { newsId: route.newsId } : route.formSlug ? { formSlug: route.formSlug } : { pageSlug: route.pageSlug });
       setSelectedNewsId(route.newsId ?? null);
       setSelectedFormSlug(route.formSlug ?? null);
+      setSelectedPageSlug(route.pageSlug ?? null);
       window.scrollTo({ top: 0, behavior: 'smooth' });
     };
     window.addEventListener('popstate', handlePopState);
@@ -215,6 +222,16 @@ export default function App() {
             fontSizeScale={fontSizeScale}
             onNavigate={(pg) => handleNavigate(pg)}
             slug={selectedFormSlug || ''}
+          />
+        </main>
+      )}
+
+      {currentPage === 'page' && (
+        <main className="flex-grow z-10">
+          <SmartPagePage
+            fontSizeScale={fontSizeScale}
+            onNavigate={(pg, itemId, itemTitle) => handleNavigate(pg, itemId, itemTitle)}
+            slug={selectedPageSlug || ''}
           />
         </main>
       )}
